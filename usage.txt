@@ -1,0 +1,3 @@
+shikipl Ver. @version@
+usage:
+    shikipl [filename.js.shikipl]
