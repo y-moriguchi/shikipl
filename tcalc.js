@@ -1,17 +1,22 @@
-/**
+/*
  * shikipl
  *
  * Copyright (c) 2018 Yuichiro MORIGUCHI
  *
  * This software is released under the MIT License.
  * http://opensource.org/licenses/mit-license.php
- **/
+ */
+var PREDEFINED_CONST = 1,
+	POSTDEFINED_CONST = 2;
 var R = require("rena-js").clone();
-R.ignore(/[ \t\n]+/);
+R.ignoreDefault(/[ \t\n]+/);
 
-var ptnInteger = R.attr(0).oneOrMore(R.thenInt(/[0-9]/), function(x, b, a) { return a * 10 + b; });
-var ptnNumber = R.then(ptnInteger).maybe(R.then(".").then(ptnInteger), function(x, b, a) { return parseFloat(a + "." + b); });
-var ptnVariableValue = R.then(/[a-zA-Z]/, function(x, b, a) { return x; });
+var ptnInteger = R.attr(0).thenOneOrMore(R.thenInt(/[0-9]/), function(x, b, a) { return a * 10 + b; });
+var ptnNumber = R.then(ptnInteger).thenMaybe(R.then(".").then(ptnInteger), function(x, b, a) { return parseFloat(a + "." + b); });
+var ptnVariableValue = R.or(
+	R.then("\\pi", function(x, b, a) { return "pi"; }),
+	R.then(/[a-zA-Z]/, function(x, b, a) { return x; })
+);
 
 var ptnPoly = R.Yn(
 	function(ptn) {
@@ -21,12 +26,27 @@ var ptnPoly = R.Yn(
 					return R.then(left).then(ptn, action).then(right);
 				}
 				var ptnBracket = generateParen("{", "}");
-				var ptnVariable = R.then(ptnVariableValue, function(x, b, a) {
-					if(a.env.vars.indexOf(b) < 0) {
+				var ptnVariableSimple = R.then(ptnVariableValue, function(x, b, a) {
+					var i,
+						flag = false;
+					for(i = 0; i < a.env.vars.length; i++) {
+						if(a.env.vars[i] === b || a.env.vars[i].val === b) {
+							flag = true;
+							break;
+						}
+					}
+					if(flag) {
+						return { type: "var", env: a.env, variable: b };
+					} else {
 						throw new Error("unbound variable: " + b);
 					}
-					return { type: "var", env: a.env, variable: b };
 				});
+				var ptnVariable = R.then(ptnVariableSimple)
+					.thenMaybe(R.then("_{")
+						.then(R.then(ptn, function(x, b, a) { return { type: "call", env: a.env, func: a.variable, args: [b] }; })
+							.thenZeroOrMore(R.then(",").then(ptn, function(x, b, a) {
+								return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
+							}))));
 				var ptnNumberType = R.then(ptnNumber, function(x, b, a) { return { type: "num", env: a.env, number: b }; });
 				var ptnSingle = R.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
 					.or(ptnBracket, ptnVariable, ptnNumberType);
@@ -36,15 +56,15 @@ var ptnPoly = R.Yn(
 				function generateTriFunc(fname) {
 					var func = R.then("\\" + fname)
 						.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
-						.maybe(R.then("^").then(ptnSingle));
-					return R.or(R.then(R.maybe("{")).then(func).maybe("}"), func)
+						.thenMaybe(R.then("^").then(ptnSingle));
+					return R.or(R.then(R.maybe("{")).then(func).thenMaybe("}"), func)
 						.then(ptnTerm, function(x, b, a) {
 							return { type: "tri", fname: fname, env: a.env, pow: a, term: b };
 						});
 				}
 				function generateInvTriFunc(fname) {
 					var func = R.then("\\" + fname).then("^").then("{").then("-").then("1").then("}");
-					return R.or(R.then(R.maybe("{")).then(func).maybe("}"), func)
+					return R.or(R.then(R.maybe("{")).then(func).thenMaybe("}"), func)
 						.then(ptnTerm, function(x, b, a) {
 							return { type: "invtri", fname: fname, env: a.env, term: b };
 						});
@@ -59,7 +79,7 @@ var ptnPoly = R.Yn(
 				var ptnCall = R.then(ptnVariableValue, function(x, b, a) { return { env: a.env, func: b }; })
 					.then("(")
 					.then(R.then(ptn, function(x, b, a) { return { type: "call", env: a.env, func: a.func, args: [b] }; })
-						.zeroOrMore(R.then(",").then(ptn, function(x, b, a) {
+						.thenZeroOrMore(R.then(",").then(ptn, function(x, b, a) {
 							return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
 						})))
 					.then(")");
@@ -121,15 +141,15 @@ var ptnPoly = R.Yn(
 						ptnAbs,
 						ptnBigAbs);
 
-				var ptnPower = R.then(ptnElement).maybe(R.then("^").then(ptnSingle), function(x, b, a) {
+				var ptnPower = R.then(ptnElement).thenMaybe(R.then("^").then(ptnSingle), function(x, b, a) {
 						return { type: "pow", env: a.env, pow: b, body: a };
 					});
 				var ptnVariables = R.zeroOrMore(ptnPower, function(x, b, a) { return a.concat([b]); }, []);
-				return R.then(R.attr(1).maybe(ptnNumber), function(x, b, a) { return { env: a.env, val: b }; })
+				return R.then(R.attr(1).thenMaybe(ptnNumber), function(x, b, a) { return { env: a.env, val: b }; })
 					.then(ptnVariables, function(x, b, a) { return { type: "term", env: a.env, num: a.val, vars: b }; });
 			}
 		);
-		return R.then(R.then(ptnTerm, function(x, b, a) { return { env: a.env, val: [b] }; }).zeroOrMore(
+		return R.then(R.then(ptnTerm, function(x, b, a) { return { env: a.env, val: [b] }; }).thenZeroOrMore(
 				R.or(
 					R.then("+").then(ptnTerm, function(x, b, a) {
 						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
@@ -142,23 +162,28 @@ var ptnPoly = R.Yn(
 );
 
 var ptnVariableArgs = R.delimit(R.or(ptnVariableValue, ptnNumber), ",", function(x, b, a) { return a.concat([b]); }, []);
-var ptnSmallLeft = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b } }; })
+var ptnSmallLeft = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; })
 	.then("(")
-	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: b } }; })
+	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: a.env.vars.concat(b) } }; })
 	.then(")");
-var ptnBigLeft = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b } }; })
+var ptnBigLeft = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; })
 	.then(R.maybe("{"))
 	.then("\\left(")
-	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: b } }; })
+	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: a.env.vars.concat(b) } }; })
 	.then("\\right)")
 	.then(R.maybe("}"));
-var ptnLeft = R.or(ptnSmallLeft, ptnBigLeft);
+var ptnSubLeft = R.then("{").then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; })
+	.then("_").then("{")
+	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: a.env.vars.concat(b) } }; })
+	.then("}").then("}");
+var ptnConst = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; });
+var ptnLeft = R.or(ptnSmallLeft, ptnBigLeft, ptnSubLeft, ptnConst);
 
 var ptn = R.then(ptnLeft).then("=").then(ptnPoly, function(x, b, a) { return { type: "func", left: a.env, right: b }; });
 
 var actions = {
 	"var": function(x, env) {
-		return x.variable;
+		return env.consts.indexOf(x.variable) < 0 ? x.variable : "(me." + x.variable + ")";
 	},
 	"num": function(x, env) {
 		return "(" + x.number + ")";
@@ -190,11 +215,9 @@ var actions = {
 	},
 	"call": function(x, env) {
 		var i,
-			res = x.func + "(";
+			res = "";
 		for(i = 0; i < x.args.length; i++) {
-			if(i > 0) {
-				res += ",";
-			}
+			res += res ? "," : x.func + "(";
 			res += visit(x.args[i], env);
 		}
 		return res + ")";
@@ -255,15 +278,14 @@ var actions = {
 	},
 	"func": function(x, env) {
 		var i,
-			res = "function ";
-		res += "(";
+			res = "";
 		for(i = 0; i < x.left.vars.length; i++) {
-			if(i > 0) {
-				res += ",";
+			if(!x.left.vars[i].constFlag) {
+				res += res ? "," : "function(";
+				res += typeof x.left.vars[i] === "number" ? "_" + i : x.left.vars[i];
 			}
-			res += typeof x.left.vars[i] === "number" ? "_" + i : x.left.vars[i];
 		}
-		res += ")\n{\treturn ";
+		res += (res ? "" : "function(") + ")\n{\treturn ";
 		res += visit(x.right, env);
 		res += ";\n}";
 		return res;
@@ -274,20 +296,124 @@ function visit(x, env) {
 	return actions[x.type](x, env);
 }
 
-function evalTeX(/*args*/) {
+var defaultConsts = {
+	e: Math.E,
+	pi: Math.PI
+};
+
+function generateToTeX(option /*, args*/) {
 	var i,
-		j,
-		k,
+		opt = option ? option : {},
+		consts = opt.consts ? opt.consts : defaultConsts,
 		attrs = [],
 		funcGroups = {},
-		funcResult,
 		funcGroup,
-		vars,
-		cond,
-		env = { count: 0 },
-		result = {};
-	for(i = 0; i < arguments.length; i++) {
-		attrs.push(ptn.parse(arguments[i]).attribute);
+		env = { count: 0, consts: [] },
+		funcResult,
+		inheritAttr,
+		resultAttr;
+	function getInitAttribute() {
+		var i,
+			result = [];
+		for(i in consts) {
+			if(consts.hasOwnProperty(i)) {
+				result.push({
+					constFlag: PREDEFINED_CONST,
+					val: i
+				});
+			}
+		}
+		return {
+			env: {
+				vars: result
+			}
+		};
+	}
+	function generateConsts() {
+		var i,
+			result = "";
+		for(i in consts) {
+			if(consts.hasOwnProperty(i)) {
+				result += result ? ",\n" : "(function() {\nvar me,\n";
+				result += i + " = " + consts[i];
+			}
+		}
+		return result + ";\nme = {";
+	}
+	function generateFuncGroups(name) {
+		var j,
+			k,
+			argResult,
+			funcResult,
+			vars,
+			cond,
+			validNum = {};
+		for(j = 0, argResult = ""; j < funcGroups[name][0].left.vars.length; j++) {
+			if(!funcGroups[name][0].left.vars[j].constFlag) {
+				if(argResult) {
+					argResult += ",";
+				}
+				argResult += "a" + j;
+				validNum[j] = true;
+			}
+		}
+		if(argResult) {
+			funcResult = "function(";
+			funcResult += argResult + ") {";
+			funcResult += "if(false) {} else "
+			for(j = 0; j < funcGroups[name].length; j++) {
+				vars = funcGroups[name][j].left.vars;
+				cond = [];
+				for(k = 0; k < vars.length; k++) {
+					if(typeof vars[k] === "number") {
+						cond[k] = vars[k];
+					}
+				}
+				funcResult += "if(true";
+				for(k = 0; k < cond.length; k++) {
+					if(validNum[k] && cond[k]) {
+						funcResult += " && a" + k + " === " + cond[k];
+					}
+				}
+				funcResult += ") { return (";
+				funcResult += visit(funcGroups[name][j], env);
+				funcResult += ")(";
+				for(k = 0, argResult = ""; k < vars.length; k++) {
+					if(validNum[k]) {
+						if(argResult) {
+							argResult += ",";
+						}
+						argResult += cond[k] ? cond[k] : "a" + k;
+					}
+				}
+				funcResult += argResult + ");} else ";
+			}
+			funcResult += "{ throw new Error('invalid arguments') } }";
+		} else {
+			funcResult = "(" + visit(funcGroups[name][0], env) + ")()";
+		}
+		return funcResult;
+	}
+	function hasNotConstFlag(resultAttr) {
+		var j;
+		for(j = 0; j < resultAttr.left.vars.length; j++) {
+			if(!resultAttr.left.vars[i].constFlag) {
+				return true;
+			}
+		}
+		return false;
+	}
+	inheritAttr = getInitAttribute();
+	for(i = 1; i < arguments.length; i++) {
+		resultAttr = ptn.parse(arguments[i], inheritAttr).attribute;
+		attrs.push(resultAttr);
+		if(!hasNotConstFlag(resultAttr)) {
+			inheritAttr.env.vars.push({
+				constFlag: POSTDEFINED_CONST,
+				val: resultAttr.left.func
+			});
+			env.consts.push(resultAttr.left.func);
+		}
 	}
 	for(i = 0; i < attrs.length; i++) {
 		funcGroup = funcGroups[attrs[i].left.func];
@@ -300,47 +426,17 @@ function evalTeX(/*args*/) {
 			funcGroup.push(attrs[i]);
 		}
 	}
+	funcResult = "";
 	for(i in funcGroups) {
 		if(funcGroups.hasOwnProperty(i)) {
-			funcResult = "(function " + i + "(";
-			for(j = 0; j < funcGroups[i][0].left.vars.length; j++) {
-				if(j > 0) {
-					funcResult += ",";
-				}
-				funcResult += "a" + j;
-			}
-			funcResult += ") {";
-			funcResult += "if(false) {} else "
-			for(j = 0; j < funcGroups[i].length; j++) {
-				vars = funcGroups[i][j].left.vars;
-				cond = [];
-				for(k = 0; k < vars.length; k++) {
-					if(typeof vars[k] === "number") {
-						cond[k] = vars[k];
-					}
-				}
-				funcResult += "if(true";
-				for(k = 0; k < cond.length; k++) {
-					if(cond[k]) {
-						funcResult += " && a" + k + " === " + cond[k];
-					}
-				}
-				funcResult += ") { return (";
-				funcResult += visit(funcGroups[i][j], env);
-				funcResult += ")(";
-				for(k = 0; k < vars.length; k++) {
-					if(k > 0) {
-						funcResult += ",";
-					}
-					funcResult += cond[k] ? cond[k] : "a" + k;
-				}
-				funcResult += ");} else ";
-			}
-			funcResult += "{ throw new Error('invalid arguments') } })";
-			result[i] = (1,eval)(funcResult);
+			funcResult += funcResult ? ",\n" : generateConsts();
+			funcResult += i + ":";
+			funcResult += generateFuncGroups(i);
 		}
 	}
-	return result;
+	funcResult += "};\nreturn me;})();";
+console.log(funcResult);
+	return funcResult;
 }
 
-module.exports = evalTeX;
+module.exports = generateToTeX;

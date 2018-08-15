@@ -11,11 +11,14 @@ var Shiki = require("shikiml/shiki.js"),
 
 function parse(/*args*/) {
 	var i,
-		transformed = [];
+		parsed,
+		transformed = [null];
 	for(i = 0; i < arguments.length; i++) {
-		transformed.push(Shiki.parse(arguments[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim());
+		parsed = Shiki.parse(arguments[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
+		console.log(parsed);
+		transformed.push(parsed);
 	}
-	return Tcalc.apply(null, transformed);
+	return (1,eval)(Tcalc.apply(null, transformed));
 }
 
 module.exports = parse;
