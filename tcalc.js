@@ -435,7 +435,6 @@ function generateToTeX(option /*, args*/) {
 		}
 	}
 	funcResult += "};\nreturn me;})();";
-console.log(funcResult);
 	return funcResult;
 }
 
