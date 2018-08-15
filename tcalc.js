@@ -11,12 +11,31 @@ var PREDEFINED_CONST = 1,
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
 
+var alphabets = [
+	'Alpha', 'alpha', 'Beta', 'beta', 'Gamma', 'gamma', 'Delta', 'delta',
+	'Epsilon', 'epsilon', 'Zeta', 'zeta', 'Eta', 'eta', 'Theta', 'theta',
+	'Iota', 'iota', 'Kappa', 'kappa', 'Lambda', 'lambda', 'Mu', 'mu',
+	'Nu', 'nu', 'Xi', 'xi', 'Pi', 'pi', 'Rho', 'rho', 'Sigma', 'sigma',
+	'Tau', 'tau', 'Upsilon', 'upsilon', 'Phi', 'phi', 'Chi', 'chi',
+	'Psi', 'psi', 'Omega', 'omega'
+];
+function generateVariableName(alphabets) {
+	var i,
+		toApply = [];
+	for(i = 0; i < alphabets.length; i++) {
+		toApply.push(R.then("\\" + alphabets[i], function(x, b, a) { return x.substring(1); }));
+	}
+	toApply.push(R.then(/[a-zA-Z]/, function(x, b, a) { return x; }));
+	return R.or.apply(null, toApply);
+}
+
 var ptnInteger = R.attr(0).thenOneOrMore(R.thenInt(/[0-9]/), function(x, b, a) { return a * 10 + b; });
 var ptnNumber = R.then(ptnInteger).thenMaybe(R.then(".").then(ptnInteger), function(x, b, a) { return parseFloat(a + "." + b); });
-var ptnVariableValue = R.or(
-	R.then("\\pi", function(x, b, a) { return "pi"; }),
-	R.then(/[a-zA-Z]/, function(x, b, a) { return x; })
-);
+var ptnVariableValue = R.then(generateVariableName(alphabets))
+	.thenMaybe(R.or(
+		R.then("^").then("\\prime", function(x, b, a) { return a + "Prime"; }),
+		R.then("^").then("{").then("\\prime").then("\\prime").then("}", function(x, b, a) { return a + "PrimePrime"; })
+	));
 
 var ptnPoly = R.Yn(
 	function(ptn) {
@@ -41,12 +60,7 @@ var ptnPoly = R.Yn(
 						throw new Error("unbound variable: " + b);
 					}
 				});
-				var ptnVariable = R.then(ptnVariableSimple)
-					.thenMaybe(R.then("_{")
-						.then(R.then(ptn, function(x, b, a) { return { type: "call", env: a.env, func: a.variable, args: [b] }; })
-							.thenZeroOrMore(R.then(",").then(ptn, function(x, b, a) {
-								return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
-							}))));
+				var ptnVariable = R.then(ptnVariableSimple);
 				var ptnNumberType = R.then(ptnNumber, function(x, b, a) { return { type: "num", env: a.env, number: b }; });
 				var ptnSingle = R.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
 					.or(ptnBracket, ptnVariable, ptnNumberType);
@@ -83,6 +97,14 @@ var ptnPoly = R.Yn(
 							return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
 						})))
 					.then(")");
+				var ptnCallSub = R.then(ptnVariableValue, function(x, b, a) { return { env: a.env, func: b }; })
+					.then("_")
+					.then("{")
+					.then(R.then(ptn, function(x, b, a) { return { type: "call", env: a.env, func: a.func, args: [b] }; })
+						.thenZeroOrMore(R.then(",").then(ptn, function(x, b, a) {
+							return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
+						})))
+					.then("}");
 				var ptnRoot = R.then("\\sqrt").then(R.maybe(R.then("[").then(ptn).then("]"), function(x, b, a) { return { env: a.env, nth: b }; }))
 					.then(ptnSingle, function(x, b, a) { return { type: "root", env: a.env, nth: a.nth, body: b }; });
 				var ptnSumStart = R.then(ptnVariableValue, function(x, b, a) {
@@ -118,6 +140,7 @@ var ptnPoly = R.Yn(
 				var ptnBigAbs = generateParen("\\left|", "\\right|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 				var ptnElement = R.or(
 						ptnCall,
+						ptnCallSub,
 						ptnVariable,
 						ptnFrac,
 						ptnRoot,
@@ -149,7 +172,13 @@ var ptnPoly = R.Yn(
 					.then(ptnVariables, function(x, b, a) { return { type: "term", env: a.env, num: a.val, vars: b }; });
 			}
 		);
-		return R.then(R.then(ptnTerm, function(x, b, a) { return { env: a.env, val: [b] }; }).thenZeroOrMore(
+		var ptnFirstTerm = R.or(
+			R.then("-").then(ptnTerm, function(x, b, a) {
+				return { env: a.env, val: [{ type: "negate", env: a.env, body: b }] };
+			}),
+			R.then(ptnTerm, function(x, b, a) { return { env: a.env, val: [b] }; })
+		);
+		return R.then(R.then(ptnFirstTerm).thenZeroOrMore(
 				R.or(
 					R.then("+").then(ptnTerm, function(x, b, a) {
 						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
@@ -172,10 +201,11 @@ var ptnBigLeft = R.then(ptnVariableValue, function(x, b, a) { return { env: { fu
 	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: a.env.vars.concat(b) } }; })
 	.then("\\right)")
 	.then(R.maybe("}"));
-var ptnSubLeft = R.then("{").then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; })
+var ptnSubLeftBase = R.then("{").then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; })
 	.then("_").then("{")
 	.then(ptnVariableArgs, function(x, b, a) { return { env: { func: a.env.func, vars: a.env.vars.concat(b) } }; })
 	.then("}").then("}");
+var ptnSubLeft = R.or(R.then("{").then(ptnSubLeftBase).then("}"), ptnSubLeftBase);
 var ptnConst = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; });
 var ptnLeft = R.or(ptnSmallLeft, ptnBigLeft, ptnSubLeft, ptnConst);
 
@@ -202,6 +232,9 @@ var actions = {
 		}
 		return res === "" ? "1" : res;
 	},
+	"negate": function(x, env) {
+		return "-(" + visit(x.body, env) + ")";
+	},
 	"poly": function(x, env) {
 		var i,
 			res = "";
@@ -217,7 +250,7 @@ var actions = {
 		var i,
 			res = "";
 		for(i = 0; i < x.args.length; i++) {
-			res += res ? "," : x.func + "(";
+			res += res ? "," : "(me." + x.func + ")(";
 			res += visit(x.args[i], env);
 		}
 		return res + ")";
@@ -397,7 +430,7 @@ function generateToTeX(option /*, args*/) {
 	function hasNotConstFlag(resultAttr) {
 		var j;
 		for(j = 0; j < resultAttr.left.vars.length; j++) {
-			if(!resultAttr.left.vars[i].constFlag) {
+			if(typeof resultAttr.left.vars[j] === "number" || !resultAttr.left.vars[j].constFlag) {
 				return true;
 			}
 		}
