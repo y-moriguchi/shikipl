@@ -9,7 +9,8 @@
 var common,
     fs = require('fs'),
 	Shiki = require("shikiml/shiki.js"),
-	Tcalc = require("./tcalc.js");
+	Tcalc = require("./tcalc.js"),
+	prettyPrinter = require("./jsmetaflat-pp.js");
 
 common = {
     version: "0.0.0"
@@ -34,27 +35,68 @@ function printUsage() {
     process.exit(1);
 }
 
+function guessIndent(source) {
+    var i,
+        lines = source.split(/\n/),
+        match,
+        beforeIndent = null,
+        indent = {};
+    for(i = 0; i < lines.length; i++) {
+        if(lines[i].charAt(0) === "\t") {
+            return {
+                indentChar: "\t",
+                step: 1
+            };
+        } else if(!!(match = /^ +/.exec(lines[i]))) {
+            if(beforeIndent === null) {
+                beforeIndent = match[0].length;
+            } else if(match[0].length > beforeIndent) {
+                return {
+                    indentChar: " ",
+                    step: match[0].length - beforeIndent
+                };
+            }
+        }
+    }
+    return {
+        indentChar: " ",
+        step: 4
+    };
+}
+
 function processFile(file) {
-    var match = /^(.*)\.js\.shikipl+$/.exec(file),
+    var match = /^(.*)\.js\.shikipl$/.exec(file),
+        REPLACEREGEX = /(^|\n)([ \t]*)((?:[^\n\\]|\\[^\n\[])*)\\\[((?:\\[^\]]|[^\\])+)\\\]/g,
         source,
-        outFile;
+        outFile,
+        indent;
     if(!match) {
         console.error("invalid extension: " + file);
         process.exit(2);
     }
     source = readFileToEnd(file);
-    source = source.replace(/\\\[((?:\\[^\]]|[^\\])+)\\\]/g, function(match, c1) {
+    indent = guessIndent(source);
+    source = source.replace(REPLACEREGEX, function(match, nl, initialIndent, prefix, c1) {
         var i,
             formulae = c1.split(/\n\n/),
             parsed,
     		transformed = [null],
-    		result;
-    	result = "\n/*" + c1 + "*/\n"
+    		resultComment,
+    		resultCode;
+    	resultComment = "\n" + initialIndent + "/*" + c1.replace(/\n/g, "\n" + initialIndent + " * ") + "*/\n" + initialIndent;
         for(i = 0; i < formulae.length; i++) {
             parsed = Shiki.parse(c1).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
             transformed.push(parsed);
         }
-        return result + Tcalc.apply(null, transformed);
+        resultCode = Tcalc.apply(null, transformed);
+        resultCode = resultCode.replace(/;$/, "");
+        resultCode = prettyPrinter(resultCode, {
+            indentChar: indent.indentChar,
+            step: indent.step,
+            indent: 0,
+            initialIndent: initialIndent
+        });
+        return nl + initialIndent + prefix + resultComment + resultCode;
     });
     outFile = file.replace(/\.js\.shikipl$/, ".js");
     fs.writeFileSync(outFile, source);
