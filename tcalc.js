@@ -258,14 +258,11 @@ var actions = {
 	"tri": function(x, env) {
 		var i,
 			res = "";
+		res += "(Math." + x.fname + "(" + visit(x.term, env) + ")";
 		if(x.pow.type !== "num" || x.pow.number !== 1) {
-			res += "Math.pow(";
+			res += "**" + visit(x.pow, env);
 		}
-		res += "Math." + x.fname + "(" + visit(x.term, env) + ")";
-		if(x.pow.type !== "num" || x.pow.number !== 1) {
-			res += "," + visit(x.pow, env) + ")";
-		}
-		return res;
+		return res + ")";
 	},
 	"invtri": function(x, env) {
 		var i,
@@ -275,7 +272,7 @@ var actions = {
 	},
 	"pow": function(x, env) {
 		var res = "";
-		res += "Math.pow(" + visit(x.body, env) + "," + visit(x.pow, env) + ")";
+		res += "(" + visit(x.body, env) + "**" + visit(x.pow, env) + ")";
 		return res;
 	},
 	"root": function(x, env) {
@@ -289,10 +286,10 @@ var actions = {
 	},
 	"sum": function(x, env) {
 		var res = "";
-		res += "(function () { var i" + env.count + "=0;";
-		res += "for(var " + x.countvar + "=" + visit(x.start, env) + ";" + x.countvar + "<=" + visit(x.end, env) + ";" + x.countvar + "++){";
-		res += "i" + env.count + "+=" + visit(x.body, env);
-		res += "} return i" + env.count + ";})()";
+		res += "(function (i" + env.count + "," + x.countvar + ") {";
+		res += "for(" + x.countvar + "=" + visit(x.start, env) + ";" + x.countvar + "<=" + visit(x.end, env) + ";" + x.countvar + "++){";
+		res += "i" + env.count + "+=" + visit(x.body, env) + ";";
+		res += "} return i" + env.count + ";})(0,0)";
 		env.count++;
 		return res;
 	},
@@ -421,7 +418,7 @@ function generateToTeX(option /*, args*/) {
 				}
 				funcResult += argResult + ");} else ";
 			}
-			funcResult += "{ throw new Error('invalid arguments') } }";
+			funcResult += "{ throw new Error('invalid arguments'); } }";
 		} else {
 			funcResult = "(" + visit(funcGroups[name][0], env) + ")()";
 		}
@@ -468,6 +465,7 @@ function generateToTeX(option /*, args*/) {
 		}
 	}
 	funcResult += "};\nreturn me;})();";
+console.log(funcResult);
 	return funcResult;
 }
 

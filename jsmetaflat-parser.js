@@ -61,24 +61,35 @@ var ptnExpr = R.Yn(function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 		R.then("(").then(ptnExprList, function(x, b, a) { return { type: "call", callee: a, args: b }; }).then(")")
 	);
 	var ptnUnary = R.or(
-		R.then("-").then(ptnCall, function(x, b, a) { return { type: "uminus", body: b }; }),
+		R.then("-").then(ptnCall, function(x, b, a) { return { type: "pre", body: b, op: "-" }; }),
 		R.then("new").then(ptnCall, function(x, b, a) { return { type: "new", callee: b.callee, args: b.args }; }),
 		ptnCall
 	);
+	var ptnPostfix = R.then(ptnUnary).thenMaybe(R.or(
+		R.then("++", function(x, b, a) { return { type: "post", body: a, op: "++" }; })
+	));
+	var ptnExponent = R.then(ptnPostfix).thenZeroOrMore(
+		R.then("**").then(ptnPostfix, function(x, b, a) { return { type: "pow", left: a, right: b }; })
+	);
 	var ptnFactor = R.Y(function(ptnFactor) {
-		return R.then(ptnUnary).thenMaybe(R.or(
-			R.then("*").then(ptnFactor, function(x, b, a) { return { type: "mul", left: a, right: b }; }),
-			R.then("/").then(ptnFactor, function(x, b, a) { return { type: "div", left: a, right: b }; })));
+		return R.then(ptnExponent).thenMaybe(R.or(
+			R.then("*").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "*" }; }),
+			R.then("/").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "/" }; })));
 	});
 	var ptnTerm = R.Y(function(ptnTerm) {
 		return R.then(ptnFactor).thenMaybe(R.or(
-			R.then("+").then(ptnTerm, function(x, b, a) { return { type: "add", left: a, right: b }; }),
-			R.then("-").then(ptnTerm, function(x, b, a) { return { type: "sub", left: a, right: b }; })));
+			R.then("+").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "+" }; }),
+			R.then("-").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "-" }; })));
+	});
+	var ptnCompare = R.Y(function(ptnCompare) {
+		return R.then(ptnTerm).thenMaybe(R.or(
+			R.then("<=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "<=" }; })));
 	});
 	var ptnAssign = R.or(
-		R.then(ptnVarName).thenOneOrMore(
-			R.then("=").then(ptnTerm, function(x, b, a) { return { type: "assign", left: a, right: b }; })),
-		R.then(ptnTerm)
+		R.then(ptnVarName).thenOneOrMore(R.or(
+			R.then("=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "=" }; }),
+			R.then("+=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "+=" }; }))),
+		R.then(ptnCompare)
 	);
 	return ptnAssign;
 }, function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
@@ -94,9 +105,27 @@ var ptnExpr = R.Yn(function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 	var ptnThrow = R.then("throw").then(ptnExpr, function(x, b, a) { return { type: "throw", expr: b }; }).then(";");
 	var ptnReturn = R.then("return").then(ptnExpr, function(x, b, a) { return { type: "return", expr: b }; }).then(";");
 	var ptnBlock = R.then("{").then(ptnStmtList, function(x, b, a) { return { type: "block", stmts: b }; }).then("}");
+	var ptnFor = R.then("for")
+		.then("(")
+		.then(ptnExpr)
+		.then(";")
+		.then(ptnExpr, function(x, b, a) { return { init: a, cond: b }; })
+		.then(";")
+		.then(ptnExpr, function(x, b, a) { return { init: a.init, cond: a.cond, step: b }; })
+		.then(")")
+		.then(ptnStmt, function(x, b, a) {
+			return {
+				type: "for",
+				init: a.init,
+				cond: a.cond,
+				step: a.step,
+				body: b
+			};
+		});
 	return R.or(
 		ptnBlock,
 		ptnIfElse,
+		ptnFor,
 		ptnReturn,
 		ptnThrow,
 		R.then(ptnExpr).then(";", function(x, b, a) { return { type: "simpleexpr", expr: a }; })

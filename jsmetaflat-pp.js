@@ -7,6 +7,7 @@
  * http://opensource.org/licenses/mit-license.php
  */
 var undef = void 0,
+	Opt = require("./jsmetaflat-opt.js"),
 	jsmfParser = require("./jsmetaflat-parser.js");
 
 function join(args, delimiter, output) {
@@ -14,11 +15,10 @@ function join(args, delimiter, output) {
 		result = "";
 	for(i = 0; i < args.length; i++) {
 		if(i > 0) {
-			result += delimiter;
+			prettyPrinter(delimiter, output);
 		}
-		result += prettyPrinter(args[i], output);
+		prettyPrinter(args[i], output);
 	}
-	return result;
 }
 
 function strTimes(str, num) {
@@ -125,34 +125,25 @@ function prettyPrinter(parsed, output) {
 		join(parsed.args, ", ", output);
 		output.print(")");
 		break;
-	case "uminus":
-		output.print("-");
+	case "pre":
+		output.print(parsed.op);
 		prettyPrinter(parsed.body, output);
 		break;
-	case "mul":
+	case "post":
+		prettyPrinter(parsed.body, output);
+		output.print(parsed.op);
+		break;
+	case "op":
 		prettyPrinter(parsed.left, output);
-		output.print(" * ");
+		output.print(" " + parsed.op + " ");
 		prettyPrinter(parsed.right, output);
 		break;
-	case "div":
+	case "pow":
+		output.print("Math.pow(");
 		prettyPrinter(parsed.left, output);
-		output.print(" / ");
+		output.print(", ");
 		prettyPrinter(parsed.right, output);
-		break;
-	case "add":
-		prettyPrinter(parsed.left, output);
-		output.print(" + ");
-		prettyPrinter(parsed.right, output);
-		break;
-	case "sub":
-		prettyPrinter(parsed.left, output);
-		output.print(" - ");
-		prettyPrinter(parsed.right, output);
-		break;
-	case "assign":
-		prettyPrinter(parsed.left, output);
-		output.print(" = ");
-		prettyPrinter(parsed.right, output);
+		output.print(")");
 		break;
 	case "if":
 		output.print("if(");
@@ -190,6 +181,29 @@ function prettyPrinter(parsed, output) {
 			}
 		}
 		break;
+	case "for":
+		output.print("for(");
+		prettyPrinter(parsed.init, output);
+		output.print("; ");
+		prettyPrinter(parsed.cond, output);
+		output.print(";");
+		prettyPrinter(parsed.step, output);
+		if(parsed.body.type === "block") {
+			if(parsed.body.stmts.length > 0) {
+				output.println(") {", 1);
+				for(i = 0; i < parsed.body.stmts.length; i++) {
+					if(i > 0) {
+						output.println("");
+					}
+					prettyPrinter(parsed.body.stmts[i], output);
+				}
+				output.println("", -1);
+				output.print("}");
+			} else {
+				output.println(") {}");
+			}
+		}
+		break;
 	case "throw":
 		output.print("throw ");
 		prettyPrinter(parsed.expr, output);
@@ -203,10 +217,13 @@ function prettyPrinter(parsed, output) {
 	case "block":
 		output.println("{", 1);
 		for(i = 0; i < parsed.stmts.length; i++) {
+			if(i > 0) {
+				output.println("");
+			}
 			prettyPrinter(parsed.stmts[i], output);
-			output.println("");
 		}
-		output.print("}", -1);
+		output.println("", -1);
+		output.print("}");
 		break;
 	case "simpleexpr":
 		prettyPrinter(parsed.expr, output);
@@ -221,6 +238,9 @@ function prettyPrint(input, option) {
 		indent = opt.indent ? opt.indent : 0,
 		step = opt.step ? opt.step : 4,
 		output = printerOutput(indent, step);
+	if(!opt.notOptimize) {
+		parsed = Opt.optimize(parsed);
+	}
 	prettyPrinter(parsed, output);
 	return output.toString();
 }
