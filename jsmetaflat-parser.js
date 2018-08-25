@@ -8,6 +8,7 @@
  */
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
+R.setKey(["++", "**", "*", "/", "+", "-", "<=", "===", "&&", "=", "+="]);
 
 var ptnSimpleVarName = R.then(/[a-zA-Z_][a-zA-Z0-9_]*/, function(x) { return x.trim(); });
 var ptnVarName = R.delimit(ptnSimpleVarName, ".", function(x, b, a) { return a ? a + "." + b : b; }, "");
@@ -61,36 +62,45 @@ var ptnExpr = R.Yn(function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 		R.then("(").then(ptnExprList, function(x, b, a) { return { type: "call", callee: a, args: b }; }).then(")")
 	);
 	var ptnUnary = R.or(
-		R.then("-").then(ptnCall, function(x, b, a) { return { type: "pre", body: b, op: "-" }; }),
 		R.then("new").then(ptnCall, function(x, b, a) { return { type: "new", callee: b.callee, args: b.args }; }),
 		ptnCall
 	);
 	var ptnPostfix = R.then(ptnUnary).thenMaybe(R.or(
-		R.then("++", function(x, b, a) { return { type: "post", body: a, op: "++" }; })
+		R.key("++").action(function(a) { return { type: "post", body: a, op: "++" }; })
 	));
-	var ptnExponent = R.then(ptnPostfix).thenZeroOrMore(
-		R.then("**").then(ptnPostfix, function(x, b, a) { return { type: "pow", left: a, right: b }; })
+	var ptnPrefix = R.or(
+		R.key("-").then(ptnPostfix, function(x, b, a) { return { type: "pre", body: b, op: "unary-" }; }),
+		ptnPostfix
 	);
-	var ptnFactor = R.Y(function(ptnFactor) {
-		return R.then(ptnExponent).thenMaybe(R.or(
-			R.then("*").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "*" }; }),
-			R.then("/").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "/" }; })));
+	var ptnExponent = R.Y(function(ptnExponent) {
+		return R.then(ptnPrefix).thenMaybe(
+			R.key("**").then(ptnExponent, function(x, b, a) { return { type: "pow", left: a, right: b }; }));
 	});
-	var ptnTerm = R.Y(function(ptnTerm) {
-		return R.then(ptnFactor).thenMaybe(R.or(
-			R.then("+").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "+" }; }),
-			R.then("-").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "-" }; })));
-	});
-	var ptnCompare = R.Y(function(ptnCompare) {
-		return R.then(ptnTerm).thenMaybe(R.or(
-			R.then("<=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "<=" }; })));
-	});
-	var ptnAssign = R.or(
-		R.then(ptnVarName).thenOneOrMore(R.or(
-			R.then("=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "=" }; }),
-			R.then("+=").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "+=" }; }))),
-		R.then(ptnCompare)
+	var ptnFactor = R.then(ptnExponent).thenZeroOrMore(R.or(
+		R.key("*").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "*" }; }),
+		R.key("/").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "/" }; }))
 	);
+	var ptnTerm = R.then(ptnFactor).thenZeroOrMore(R.or(
+		R.key("+").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "+" }; }),
+		R.key("-").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "-" }; }))
+	);
+	var ptnCompare = R.then(ptnTerm).thenZeroOrMore(R.or(
+		R.key("<=").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "<=" }; }))
+	);
+	var ptnEq = R.then(ptnCompare).thenZeroOrMore(R.or(
+		R.key("===").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "===" }; }))
+	);
+	var ptnLogAnd = R.then(ptnEq).thenZeroOrMore(
+		R.key("&&").then(ptnEq, function(x, b, a) { return { type: "op", left: a, right: b, op: "&&" }; })
+	);
+	var ptnAssign = R.Y(function(ptnAssign) {
+		return R.or(
+			R.then(ptnVarName).then(R.or(
+				R.key("=").then(ptnAssign, function(x, b, a) { return { type: "op", left: a, right: b, op: "=" }; }),
+				R.key("+=").then(ptnAssign, function(x, b, a) { return { type: "op", left: a, right: b, op: "+=" }; }))),
+			R.then(ptnLogAnd)
+		);
+	});
 	return ptnAssign;
 }, function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 	return R.attr([]).thenMaybe(R.delimit(ptnExpr, ",", function(x, b, a) { return a.concat(b); }, []));

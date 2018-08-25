@@ -11,6 +11,26 @@ var A = require("astraia");
 var rules = [
 	{
 		pattern: {
+			type: "op",
+			op: "&&",
+			left: A.eqv(true)
+		},
+		action: function(obj) {
+			return obj.right;
+		}
+	},
+	{
+		pattern: {
+			type: "op",
+			op: "||",
+			left: A.eqv(false)
+		},
+		action: function(obj) {
+			return obj.right;
+		}
+	},
+	{
+		pattern: {
 			type: "if",
 			cond: A.eqv(false),
 			bodyElse: A.any
@@ -45,6 +65,24 @@ var rules = [
 				defs: obj.defs,
 				body: obj.body[0].stmts
 			};
+		}
+	},
+	{
+		pattern: {
+			type: "return",
+			expr: {
+				type: "call",
+				callee: {
+					type: "function",
+					body: [{
+						type: "return",
+						expr: A.number
+					}]
+				}
+			}
+		},
+		action: function(obj) {
+			return obj.expr.callee.body[0];
 		}
 	}
 ];

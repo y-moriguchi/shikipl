@@ -10,6 +10,48 @@ var undef = void 0,
 	Opt = require("./jsmetaflat-opt.js"),
 	jsmfParser = require("./jsmetaflat-parser.js");
 
+function precedence(op) {
+	var i,
+		oppred = [
+			[ "++" ],
+			[ "unary-" ],
+			[ "**" ],
+			[ "*", "/" ],
+			[ "+", "-" ],
+			[ "<=" ],
+			[ "===" ],
+			[ "&&" ],
+			[ "=", "+=" ]
+		];
+	for(i = 0; i < oppred.length; i++) {
+		if(oppred[i].indexOf(op) >= 0) {
+			return oppred.length - i;
+		}
+	}
+	return 1000;
+}
+
+function associative(op) {
+	var opassoc = {
+			"unary-": 1,
+			"++": -1,
+			"**": 1,
+			"*": -1,
+			"/": -1,
+			"+": -1,
+			"-": -1,
+			"<=": -1,
+			"===": -1,
+			"&&": -1,
+			"=": 1,
+			"+=": 1
+		};
+	if(opassoc[op] === undef) {
+		throw new Error("invalid operator: " + op);
+	}
+	return opassoc[op];
+}
+
 function join(args, delimiter, output) {
 	var i,
 		result = "";
@@ -126,17 +168,43 @@ function prettyPrinter(parsed, output) {
 		output.print(")");
 		break;
 	case "pre":
-		output.print(parsed.op);
-		prettyPrinter(parsed.body, output);
+		output.print(parsed.op.replace(/^unary/, ""));
+		if(precedence(parsed.op) > precedence(parsed.body.op)) {
+			output.print("(");
+			prettyPrinter(parsed.body, output);
+			output.print(")");
+		} else {
+			prettyPrinter(parsed.body, output);
+		}
 		break;
 	case "post":
-		prettyPrinter(parsed.body, output);
-		output.print(parsed.op);
+		if(precedence(parsed.op) > precedence(parsed.body.op)) {
+			output.print("(");
+			prettyPrinter(parsed.body, output);
+			output.print(")");
+		} else {
+			prettyPrinter(parsed.body, output);
+		}
+		output.print(parsed.op.replace(/^unary/, ""));
 		break;
 	case "op":
-		prettyPrinter(parsed.left, output);
+		if(precedence(parsed.op) > precedence(parsed.left.op) ||
+				(precedence(parsed.op) === precedence(parsed.left.op) && associative(parsed.op) > 0)) {
+			output.print("(");
+			prettyPrinter(parsed.left, output);
+			output.print(")");
+		} else {
+			prettyPrinter(parsed.left, output);
+		}
 		output.print(" " + parsed.op + " ");
-		prettyPrinter(parsed.right, output);
+		if(precedence(parsed.op) > precedence(parsed.right.op) ||
+				(precedence(parsed.op) === precedence(parsed.right.op) && associative(parsed.op) < 0)) {
+			output.print("(");
+			prettyPrinter(parsed.right, output);
+			output.print(")");
+		} else {
+			prettyPrinter(parsed.right, output);
+		}
 		break;
 	case "pow":
 		output.print("Math.pow(");
