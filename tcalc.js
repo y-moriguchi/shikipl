@@ -7,7 +7,8 @@
  * http://opensource.org/licenses/mit-license.php
  */
 var PREDEFINED_CONST = 1,
-	POSTDEFINED_CONST = 2;
+	POSTDEFINED_CONST = 2,
+	undef = void 0;
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
 
@@ -401,7 +402,7 @@ function generateToTeX(option /*, args*/) {
 				}
 				funcResult += "if(true";
 				for(k = 0; k < cond.length; k++) {
-					if(validNum[k] && cond[k]) {
+					if(validNum[k] && cond[k] !== undef) {
 						funcResult += " && a" + k + " === " + cond[k];
 					}
 				}

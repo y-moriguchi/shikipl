@@ -7,18 +7,29 @@
  * http://opensource.org/licenses/mit-license.php
  **/
 var Shiki = require("shikiml/shiki.js"),
-	Tcalc = require("./tcalc.js");
+	Tcalc = require("./tcalc.js"),
+	prettyPrinter = require("./jsmetaflat-pp.js");
 
-function parse(/*args*/) {
+function transform(formulaeString) {
 	var i,
 		parsed,
-		transformed = [null];
-	for(i = 0; i < arguments.length; i++) {
-		parsed = Shiki.parse(arguments[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
-		console.log(parsed);
+		formulae,
+		transformed = [null],
+		resultCode;
+	formulae = formulaeString.split(/\n\n/);
+	for(i = 0; i < formulae.length; i++) {
+		parsed = Shiki.parse(formulae[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
 		transformed.push(parsed);
 	}
-	return (1,eval)(Tcalc.apply(null, transformed));
+	resultCode = Tcalc.apply(null, transformed);
+	resultCode = resultCode.replace(/;$/, "");
+	resultCode = prettyPrinter(resultCode, {
+		indentChar: " ",
+		step: 4,
+		indent: 0,
+		initialIndent: ""
+	});
+	return resultCode;
 }
 
-module.exports = parse;
+module.exports = transform;

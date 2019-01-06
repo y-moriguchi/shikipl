@@ -85,7 +85,7 @@ function processFile(file) {
     		resultCode;
     	resultComment = "\n" + initialIndent + "/*" + c1.replace(/\n/g, "\n" + initialIndent + " * ") + "*/\n" + initialIndent;
         for(i = 0; i < formulae.length; i++) {
-            parsed = Shiki.parse(c1).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
+            parsed = Shiki.parse(formulae[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
             transformed.push(parsed);
         }
         resultCode = Tcalc.apply(null, transformed);
