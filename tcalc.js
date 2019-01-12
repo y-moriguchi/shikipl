@@ -69,12 +69,16 @@ var ptnPoly = R.Yn(
 				var ptnFrac = R.then("\\frac").then(ptnBracket, function(x, b, a) { return { env: a.env, val: b }; })
 					.then(ptnBracket, function(x, b, a) { return { type: "frac", env: a.env, numer: a.val, denom: b }; });
 				var ptnCall = R.then(ptnVariableValue, function(x, b, a) { return { env: a.env, func: b }; })
+					.then(R.maybe("{"))
+					.then(R.maybe("\\left"))
 					.then("(")
 					.then(R.then(ptn, function(x, b, a) { return { type: "call", env: a.env, func: a.func, args: [b] }; })
 						.thenZeroOrMore(R.then(",").then(ptn, function(x, b, a) {
 							return { type: "call", env: a.env, func: a.func, args: a.args.concat([b]) };
 						})))
-					.then(")");
+					.then(R.maybe("\\right"))
+					.then(")")
+					.then(R.maybe("}"));
 				var ptnCallSub = R.then(ptnVariableValue, function(x, b, a) { return { env: a.env, func: b }; })
 					.then("_")
 					.then("{")
@@ -178,7 +182,7 @@ var ptnPoly = R.Yn(
 							.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
 								return { type: "angle", env: a.env, body: a };
 							});
-						var ptnPower = R.then(ptnElement).thenMaybe(R.then("^").then(ptnSingle), function(x, b, a) {
+						var ptnPower = R.then(ptnElement).thenMaybe(R.then("^").then(ptn), function(x, b, a) {
 								return { type: "pow", env: a.env, pow: b, body: a };
 							});
 						var ptnVariables = R.zeroOrMore(R.or(ptnAngle, ptnPower), function(x, b, a) { return a.concat([b]); }, []);

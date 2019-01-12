@@ -50,6 +50,10 @@ assertFloat("multiplication", s => s.f(5), 10, `
 f(a) = 2a
 `);
 
+assertFloat("unary minus", s => s.f(-26), 27, `
+f(a) = -a + 1
+`);
+
 assertFloat("priority 1", s => s.f(13), 27, `
 f(a) = 2a + 1
 `);
@@ -90,6 +94,29 @@ assertFloat("power 4", s => s.f(5), 100, `
 f(a) = (2a)
 `);
 
+assertFloat("power 5", s => s.f(2), 32, `
+        2a+1
+f(a) = a
+`);
+
+assertFloat("power 6", s => s.f(2), 8, `
+         2
+        a - 1
+f(a) = a
+`);
+
+assertFloat("power 7", s => s.f(4), 9, `
+        1
+        - + 1
+        2
+f(a) = a      + 1
+`);
+
+assertFloat("angle", s => s.f(1), Math.PI / 180, `
+        o
+f(a) = a
+`);
+
 assertFloat("square root 1", s => s.f(841), 29, `
         _
 f(a) = va
@@ -111,6 +138,69 @@ assertFloat("square root 4", s => s.f(-29), 29, `
 f(a) = v a
 `);
 
+assertFloat("sum 1", s => s.f(2), 110, `
+          10
+       ---
+f(a) =  >       an
+       ---
+          n = 1
+`);
+
+assertFloat("sum 2", s => s.f(2), 2*(1 + 4 + 9), `
+          3
+       ---        2
+f(a) =  >       an
+       ---
+          n = 1
+`);
+
+function sum3(a, n) {
+	var result = 0, i;
+	for(i = 1; i <= 3; i++) {
+		result += a * Math.sin(a);
+	}
+	return result;
+}
+assertFloat("sum 3", s => s.f(2), sum3(2, 3), `
+          3
+       ---
+f(a) =  >       a sin a
+       ---
+          n = 1
+`);
+
+function sum4(a, n) {
+	var result = 0, i;
+	for(i = 1; i <= 3; i++) {
+		result += Math.sin(a) + Math.cos(a);
+	}
+	return result;
+}
+assertFloat("sum 4", s => s.f(2), sum4(2, 3), `
+          3
+       ---
+f(a) =  >       sin a + cos a
+       ---
+          n = 1
+`);
+
+assertFloat("builtin const 1", s => s.a, Math.exp(2), `
+     2
+a = e
+`);
+
+assertFloat("builtin const 2", s => s.a, 2 * Math.PI, `
+a = 2π
+`);
+
+assertFloat("absolute value 1", s => s.f(-1), 1, `
+f(a) = |a|
+`);
+
+assertFloat("absolute value 2", s => s.f(-1), 3, `
+f(a) = |2a - 1|
+`);
+
 assertFloat("sin 1", s => s.f(Math.PI / 2), 1, `
 f(a) = sin a
 `);
@@ -118,6 +208,18 @@ f(a) = sin a
 assertFloat("sin 2", s => s.f(0.5, 0.1, 0.2), Math.sin(0.5) * Math.sin(0.1) * Math.sin(0.2) * Math.sin(0.2), `
                             2
 f(a, b, c) = sin a sin b sin  c
+`);
+
+assertFloat("sin 3", s => s.f(Math.PI / 2), 0, `
+                π
+f(a) = sin (a + --)
+                 2
+`);
+
+assertFloat("sin 4", s => s.f(90), 1, `
+           π
+f(a) = sin ---a
+           180
 `);
 
 assertFloat("cos", s => s.f(Math.PI / 2), 0, `
@@ -168,6 +270,21 @@ f(a) = ln a
 assertFloat("log 3", s => s.f(128), 7, `
 f(a) = log  a
           2
+`);
+
+assertFloat("function call 1", s => s.f(128), 14, `
+g(a) = log  a
+          2
+
+f(a) = 2g(a)
+`);
+
+assertFloat("function call 1", s => s.f(128), 14, `
+g(a) = log  a
+          2
+
+f(a) = 2g
+         a
 `);
 
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `
