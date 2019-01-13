@@ -29,7 +29,6 @@ function assertFloat(title, callback, expect, shikiProgram) {
 			console.log(`${red}fail: ${title}: expect ${expect} but actual ${actual}${reset}`);
 		}
 	} catch(e) {
-		throw e;
 		console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
 	}
 }
@@ -138,52 +137,6 @@ assertFloat("square root 4", s => s.f(-29), 29, `
 f(a) = v a
 `);
 
-assertFloat("sum 1", s => s.f(2), 110, `
-          10
-       ---
-f(a) =  >       an
-       ---
-          n = 1
-`);
-
-assertFloat("sum 2", s => s.f(2), 2*(1 + 4 + 9), `
-          3
-       ---        2
-f(a) =  >       an
-       ---
-          n = 1
-`);
-
-function sum3(a, n) {
-	var result = 0, i;
-	for(i = 1; i <= 3; i++) {
-		result += a * Math.sin(a);
-	}
-	return result;
-}
-assertFloat("sum 3", s => s.f(2), sum3(2, 3), `
-          3
-       ---
-f(a) =  >       a sin a
-       ---
-          n = 1
-`);
-
-function sum4(a, n) {
-	var result = 0, i;
-	for(i = 1; i <= 3; i++) {
-		result += Math.sin(a) + Math.cos(a);
-	}
-	return result;
-}
-assertFloat("sum 4", s => s.f(2), sum4(2, 3), `
-          3
-       ---
-f(a) =  >       sin a + cos a
-       ---
-          n = 1
-`);
-
 assertFloat("builtin const 1", s => s.a, Math.exp(2), `
      2
 a = e
@@ -287,12 +240,65 @@ f(a) = 2g
          a
 `);
 
+assertFloat("sum 1", s => s.f(2), 110, `
+          10
+       ---
+f(a) =  >       an
+       ---
+          n = 1
+`);
+
+assertFloat("sum 2", s => s.f(2), 2*(1 + 4 + 9), `
+          3
+       ---        2
+f(a) =  >       an
+       ---
+          n = 1
+`);
+
+function sum3(a, n) {
+	var result = 0, i;
+	for(i = 1; i <= 3; i++) {
+		result += a * Math.sin(a);
+	}
+	return result;
+}
+assertFloat("sum 3", s => s.f(2), sum3(2, 3), `
+          3
+       ---
+f(a) =  >       a sin a
+       ---
+          n = 1
+`);
+
+function sum4(a, n) {
+	var result = 0, i;
+	for(i = 1; i <= 3; i++) {
+		result += Math.sin(a) + Math.cos(a);
+	}
+	return result;
+}
+assertFloat("sum 4", s => s.f(2), sum4(2, 3), `
+          3
+       ---
+f(a) =  >       sin a + cos a
+       ---
+          n = 1
+`);
+
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `
                      ________
                     / 2
               -b + v b  - 4ac
 f(a, b, c) = -----------------
                      2a
+`);
+
+assertFloat("spherical Mercator projection", s => s.y(27), 0.48971537442745056, `
+                     o
+               π   b
+y(b) = ln tan (-- + --)
+                4   2
 `);
 
 assertFloat("haversine formula", s => s.d(3.046685, 3.146685, 100.686656, 101.686656), 69.2892623017496, `
@@ -314,4 +320,31 @@ F  = 1
 
 F  = F    + F
  n    n-2    n-1
+`);
+
+assertFloat("Ackermann function 1", s => s.A(3,3), 61, `
+A    = n+1
+ 0,n
+
+A    = A
+ m,0    m-1,1
+
+A    = A
+ m,n    m-1,A
+             m,n-1
+`);
+
+assertFloat("Ackermann function 2", s => s.A(3,3), 61, `
+A(0,n) = n+1
+
+A(m,0) = A(m-1,1)
+
+A(m,n) = A(m-1,A(m,n-1))
+`);
+
+assertFloat("mixed test 1", s => s.y(27), 1.48971537442745056, `
+                     o
+               π   b
+y(b) = ln tan (-- + --) + 1
+                4   2
 `);

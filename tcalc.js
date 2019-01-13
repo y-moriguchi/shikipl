@@ -122,42 +122,53 @@ var ptnPoly = R.Yn(
 				var ptnAbs = generateParen("|", "|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 				var ptnBigAbs = generateParen("\\left|", "\\right|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 
+				function generateTriFuncHead(fname) {
+					var func = R.then("\\" + fname).thenMaybe(R.then("^").then(ptnSingle));
+					return R.or(R.then("{").then(func).then("}"), R.then(func));
+				}
+				var ptnLogHead = R.then(R.or(
+					R.then("{").then("\\log").then(R.maybe(R.then("_").then(ptnSingle))).then("}"),
+					R.then("\\log")));
+				var ptnFunctionHead = R.or(
+					generateTriFuncHead("sin"),
+					generateTriFuncHead("cos"),
+					generateTriFuncHead("tan"),
+					ptnLogHead,
+					R.then("\\ln"),
+					R.then("\\exp"));
+
 				return R.Yn(
 					function(ptnTerm, ptnNoFunction) {
-						function generateTriFunc(fname) {
-							var func = R.then("\\" + fname)
-								.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
-								.thenMaybe(R.then("^").then(ptnSingle));
-							return R.or(R.then("{").then(func).then("}"), func)
-								.then(ptnNoFunction, function(x, b, a) {
-									return { type: "tri", fname: fname, env: a.env, pow: a, term: b };
-								});
-						}
-						function generateInvTriFunc(fname) {
-							var func = R.then("\\" + fname).then("^").then("{").then("-").then("1").then("}");
-							return R.or(R.then("{").then(func).then("}"), func)
-								.then(ptnNoFunction, function(x, b, a) {
-									return { type: "invtri", fname: fname, env: a.env, term: b };
-								});
-						}
-						var ptnLog = R.then(
-								R.then(R.maybe("{"))
-									.then("\\log")
-									.then(
-										R.maybe(R.then("_").then(ptnSingle), function(x, b, a) { return { env: a.env, base: b }; }))
-									.then(R.maybe("}")))
-							.then(ptnNoFunction, function(x, b, a) { return { type: "log", env: a.env, base: a.base, body: b }; });
-						var ptnLn = R.then("\\ln")
-							.then(ptnNoFunction, function(x, b, a) { return { type: "log", env: a.env, base: null, body: b }; });
-						var ptnExp = R.then("\\exp")
-							.then(ptnNoFunction, function(x, b, a) { return { type: "exp", env: a.env, base: null, body: b }; });
+						var ptnFunctions = R.Y(function(ptnFunctions) {
+							function generateTriFunc(fname) {
+								var func = R.then("\\" + fname)
+									.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
+									.thenMaybe(R.then("^").then(ptnSingle));
+								return R.or(R.then("{").then(func).then("}"), func)
+									.then(ptnFunctions, function(x, b, a) {
+										return { type: "tri", fname: fname, env: a.env, pow: a, term: b };
+									});
+							}
+							function generateInvTriFunc(fname) {
+								var func = R.then("\\" + fname).then("^").then("{").then("-").then("1").then("}");
+								return R.or(R.then("{").then(func).then("}"), func)
+									.then(ptnFunctions, function(x, b, a) {
+										return { type: "invtri", fname: fname, env: a.env, term: b };
+									});
+							}
+							var ptnLog = R.then(R.or(
+									R.then("{")
+										.then("\\log")
+										.then(R.maybe(R.then("_").then(ptnSingle), function(x, b, a) { return { env: a.env, base: b }; }))
+										.then("}"),
+									R.then("\\log")))
+								.then(ptnFunctions, function(x, b, a) { return { type: "log", env: a.env, base: a.base, body: b }; });
+							var ptnLn = R.then("\\ln")
+								.then(ptnFunctions, function(x, b, a) { return { type: "log", env: a.env, base: null, body: b }; });
+							var ptnExp = R.then("\\exp")
+								.then(ptnFunctions, function(x, b, a) { return { type: "exp", env: a.env, base: null, body: b }; });
 
-						var ptnElement = R.or(
-								ptnCall,
-								ptnCallSub,
-								ptnVariable,
-								ptnFrac,
-								ptnRoot,
+							return R.or(
 								generateInvTriFunc("sin"),
 								generateInvTriFunc("cos"),
 								generateInvTriFunc("tan"),
@@ -167,16 +178,26 @@ var ptnPoly = R.Yn(
 								ptnLog,
 								ptnLn,
 								ptnExp,
-								ptnSum,
-								ptnBracket,
-								generateParen("(", ")"),
-								generateParen("\\{", "\\}"),
-								generateParen("[", "]"),
-								generateParen("\\left(", "\\right)"),
-								generateParen("\\left\\{", "\\right\\}"),
-								generateParen("\\left[", "\\right]"),
-								ptnAbs,
-								ptnBigAbs);
+								ptnNoFunction);
+						});
+
+						var ptnElement = R.or(
+							ptnCall,
+							ptnCallSub,
+							ptnVariable,
+							ptnFrac,
+							ptnRoot,
+							R.lookahead(ptnFunctionHead).then(ptnFunctions),
+							ptnSum,
+							ptnBracket,
+							generateParen("(", ")"),
+							generateParen("\\{", "\\}"),
+							generateParen("[", "]"),
+							generateParen("\\left(", "\\right)"),
+							generateParen("\\left\\{", "\\right\\}"),
+							generateParen("\\left[", "\\right]"),
+							ptnAbs,
+							ptnBigAbs);
 
 						var ptnAngle = R.then(ptnElement)
 							.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
@@ -190,33 +211,22 @@ var ptnPoly = R.Yn(
 							.then(ptnVariables, function(x, b, a) { return { type: "term", env: a.env, num: a.val, vars: b }; });
 					},
 					function(ptnTerm, ptnNoFunction) {
-						function generateTriFuncHead(fname) {
-							var func = R.then("\\" + fname).thenMaybe(R.then("^").then(ptnSingle));
-							return R.then("{").then(func).then("}");
-						}
-						var ptnLogHead = R.then("{").then("\\log").then(R.maybe(R.then("_").then(ptnSingle))).then("}");
-						var ptnExcept = R.or(
-							generateTriFuncHead("sin"),
-							generateTriFuncHead("cos"),
-							generateTriFuncHead("tan"),
-							ptnLogHead);
-
-						var ptnElement = R.lookaheadNot(ptnExcept).or(
-								ptnCall,
-								ptnCallSub,
-								ptnVariable,
-								ptnFrac,
-								ptnRoot,
-								ptnSum,
-								ptnBracket,
-								generateParen("(", ")"),
-								generateParen("\\{", "\\}"),
-								generateParen("[", "]"),
-								generateParen("\\left(", "\\right)"),
-								generateParen("\\left\\{", "\\right\\}"),
-								generateParen("\\left[", "\\right]"),
-								ptnAbs,
-								ptnBigAbs);
+						var ptnElement = R.lookaheadNot(ptnFunctionHead).or(
+							ptnCall,
+							ptnCallSub,
+							ptnVariable,
+							ptnFrac,
+							ptnRoot,
+							ptnSum,
+							ptnBracket,
+							generateParen("(", ")"),
+							generateParen("\\{", "\\}"),
+							generateParen("[", "]"),
+							generateParen("\\left(", "\\right)"),
+							generateParen("\\left\\{", "\\right\\}"),
+							generateParen("\\left[", "\\right]"),
+							ptnAbs,
+							ptnBigAbs);
 
 						var ptnAngle = R.then(ptnElement)
 							.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
