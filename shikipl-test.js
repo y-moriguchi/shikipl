@@ -33,6 +33,15 @@ function assertFloat(title, callback, expect, shikiProgram) {
 	}
 }
 
+function assertThrows(title, shikiProgram) {
+	try {
+		shikipl(shikiProgram.replace(/^\n/, ""));
+		console.log(`${red}fail: ${title}: expect throw exception${reset}`);
+	} catch(e) {
+		console.log(`pass: ${title}: ${e.message}`);
+	}
+}
+
 assertFloat("const", s => s.a, 27, `
 a = 27
 `);
@@ -347,4 +356,17 @@ assertFloat("mixed test 1", s => s.y(27), 1.48971537442745056, `
                π   b
 y(b) = ln tan (-- + --) + 1
                 4   2
+`);
+
+assertFloat("mixed test 2", s => s.f(8.765346283), 1, `
+f(x) = (sin x)(sin x) + (cos x)(cos x)
+`);
+
+assertThrows("abnormal 1", `
+a
+a
+`);
+
+assertThrows("abnormal 2", `
+a = |a a
 `);
