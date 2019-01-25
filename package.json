@@ -1,0 +1,24 @@
+{
+  "name": "shikipl",
+  "version": "0.0.0",
+  "description": "Process formulae by ASCII art",
+  "main": "shikipl.js",
+  "bin" : {
+    "shikipl" : "./shikipl-app.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "shikipl",
+    "ASCII-art"
+  ],
+  "author": "Yuichiro MORIGUCHI",
+  "license": "MIT",
+  "dependencies": {
+    "astraia": "0.0.2",
+    "rena-js": "0.0.1",
+    "shikiml": "0.0.2"
+  },
+  "devDependencies": {}
+}

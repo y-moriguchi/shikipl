@@ -3,6 +3,13 @@
 ShikiPL computes mathematical formulae written by ASCII art.  
 ShikiPL translates ASCII art to JavaScript code.
 
+## Install
+To install ShikiPL, type the command shown as follows.
+
+```shell
+$ npm install -g shikipl
+```
+
 ## How to use
 A ShikiPL code which you want to bury in JavaScript is written in \\[...\\] block.
 ```
@@ -130,21 +137,6 @@ d(B, b, L, l) = 2r sin    /  sin  -------- + cos B  cos b  sin  --------
                          v           2                             2
 \]
 console.log(f.d(3.046685, 3.146685, 100.686656, 101.686656));  // outputs 69.2892623017496
-```
-
-### Fibonacci series
-```
-var f = \[
-F  = 0
- 0
-
-F  = 1
- 1
-
-F  = F    + F
- n    n-2    n-1
-\]
-console.log(f.F(10));  // outputs 55
 ```
 
 ## License
