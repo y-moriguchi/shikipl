@@ -18,8 +18,8 @@ function precedence(op) {
 			[ "**" ],
 			[ "*", "/" ],
 			[ "+", "-" ],
-			[ "<=" ],
-			[ "===" ],
+			[ "<=", ">=", "<", ">" ],
+			[ "===", "!==" ],
 			[ "&&" ],
 			[ "=", "+=" ]
 		];
@@ -41,7 +41,11 @@ function associative(op) {
 			"+": -1,
 			"-": -1,
 			"<=": -1,
+			">=": -1,
+			"<": -1,
+			">": -1,
 			"===": -1,
+			"!==": -1,
 			"&&": -1,
 			"=": 1,
 			"+=": 1
@@ -72,7 +76,7 @@ function strTimes(str, num) {
 	return result;
 }
 
-function printerOutput(indent, step) {
+function printerOutput(indent, step, indentChar, initialIndent) {
 	var ind = indent ? indent * step : 0,
 		buf = strTimes(" ", indent),
 		me;
@@ -84,7 +88,7 @@ function printerOutput(indent, step) {
 			ind = indent ? ind + indent * step : ind;
 			me.print(str);
 			buf += "\n";
-			buf += strTimes(" ", ind);
+			buf += initialIndent + strTimes(indentChar, ind);
 		},
 		toString: function() {
 			return buf;
@@ -305,7 +309,9 @@ function prettyPrint(input, option) {
 		opt = option ? option : {},
 		indent = opt.indent ? opt.indent : 0,
 		step = opt.step ? opt.step : 4,
-		output = printerOutput(indent, step);
+		indentChar = opt.indentChar ? opt.indentChar : " ",
+		initialIndent = opt.initialIndent ? opt.initialIndent : "",
+		output = printerOutput(indent, step, indentChar, initialIndent);
 	if(!opt.notOptimize) {
 		parsed = Opt.optimize(parsed);
 	}

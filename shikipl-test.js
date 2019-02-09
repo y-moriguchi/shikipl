@@ -241,7 +241,7 @@ g(a) = log  a
 f(a) = 2g(a)
 `);
 
-assertFloat("function call 1", s => s.f(128), 14, `
+assertFloat("function call 2", s => s.f(128), 14, `
 g(a) = log  a
           2
 
@@ -343,6 +343,38 @@ assertFloat("sum 7", s => s.f(2), sum7(2), `
 f(a) =  >     (an +  >     (a + 1)m)
        ---          ---
           n=1          m=1
+`);
+
+assertFloat("sum 8", s => s.f(2), 6, `
+          3
+       ---     an
+f(a) =  >     ----
+       ---      2
+          n=1
+`);
+
+assertFloat("factorial 1", s => s.f(5), 120, `
+f(n) = n!
+`);
+
+assertFloat("factorial 2", s => s.f(5), 720, `
+f(n) = (n + 1)!
+`);
+
+assertFloat("series 1", s => s.f(1), Math.E, `
+          oo    n
+       ---     x
+f(x) =  >     ----
+       ---     n!
+          n=0
+`);
+
+assertFloat("series 2", s => s.f(1), Math.sin(1), `
+          oo       n 2n+1
+       ---     (-1) x
+f(x) =  >     ------------
+       ---      (2n+1)!
+          n=0
 `);
 
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `

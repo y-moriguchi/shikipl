@@ -8,9 +8,9 @@
  */
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
-R.setKey(["++", "**", "*", "/", "+", "-", "<=", "===", "&&", "=", "+="]);
+R.setKey(["++", "**", "*", "/", "+", "-", "<=", ">=", "<", ">", "===", "!==", "&&", "=", "+="]);
 
-var ptnSimpleVarName = R.then(/[a-zA-Z_][a-zA-Z0-9_]*/, function(x) { return x.trim(); });
+var ptnSimpleVarName = R.then(/[\$a-zA-Z_][\$a-zA-Z0-9_]*/, function(x) { return x.trim(); });
 var ptnVarName = R.delimit(ptnSimpleVarName, ".", function(x, b, a) { return a ? a + "." + b : b; }, "");
 var ptnVarList = R.delimit(ptnVarName, ",", function(x, b, a) { return a.concat(b); }, []);
 
@@ -85,10 +85,14 @@ var ptnExpr = R.Yn(function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 		R.key("-").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "-" }; }))
 	);
 	var ptnCompare = R.then(ptnTerm).thenZeroOrMore(R.or(
-		R.key("<=").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "<=" }; }))
+		R.key("<=").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "<=" }; }),
+		R.key(">=").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: ">=" }; }),
+		R.key("<").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: "<" }; }),
+		R.key(">").then(ptnTerm, function(x, b, a) { return { type: "op", left: a, right: b, op: ">" }; }))
 	);
 	var ptnEq = R.then(ptnCompare).thenZeroOrMore(R.or(
-		R.key("===").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "===" }; }))
+		R.key("===").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "===" }; }),
+		R.key("!==").then(ptnCompare, function(x, b, a) { return { type: "op", left: a, right: b, op: "!==" }; }))
 	);
 	var ptnLogAnd = R.then(ptnEq).thenZeroOrMore(
 		R.key("&&").then(ptnEq, function(x, b, a) { return { type: "op", left: a, right: b, op: "&&" }; })

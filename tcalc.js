@@ -12,6 +12,22 @@ var PREDEFINED_CONST = 1,
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
 
+function mergeObject(object, defaultObject) {
+	var result = {},
+		i;
+	for(i in defaultObject) {
+		if(defaultObject.hasOwnProperty(i)) {
+			result[i] = defaultObject[i];
+		}
+	}
+	for(i in object) {
+		if(object.hasOwnProperty(i)) {
+			result[i] = object[i];
+		}
+	}
+	return result;
+}
+
 var alphabets = [
 	'Alpha', 'alpha', 'Beta', 'beta', 'Gamma', 'gamma', 'Delta', 'delta',
 	'Epsilon', 'epsilon', 'Zeta', 'zeta', 'Eta', 'eta', 'Theta', 'theta',
@@ -122,15 +138,29 @@ var ptnPoly = R.Yn(
 								countvar: b.countvar,
 								start: b.start
 							};
-						}).then("}^").then(ptnSingle, function(x, b, a) {
-							return {
-								type: "sum",
-								env: a.env,
-								countvar: a.countvar,
-								start: a.start,
-								end: b
-							};
-						}))
+						}).then("}^").then(
+							R.or(
+								R.then(R.or(R.then("{").then("\\infty").then("}"), R.then("\\infty")), function(x, b, a) {
+									return {
+										type: "sum",
+										env: a.env,
+										countvar: a.countvar,
+										start: a.start,
+										end: {
+											type: "infty"
+										}
+									};
+								}),
+								R.then(ptnSingle, function(x, b, a) {
+									return {
+										type: "sum",
+										env: a.env,
+										countvar: a.countvar,
+										start: a.start,
+										end: b
+									};
+								})
+							)))
 					.then(ptnWithoutSum, function(x, b, a) {
 						return {
 							type: "sum",
@@ -225,10 +255,15 @@ var ptnPoly = R.Yn(
 							.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
 								return { type: "angle", env: a.env, body: a };
 							});
+						var ptnFactorial = R.then(ptnElement).then("!", function(x, b, a) {
+								return { type: "factorial", env: a.env, body: a };
+							});
 						var ptnPower = R.then(ptnElement).thenMaybe(R.then("^").then(ptn), function(x, b, a) {
 								return { type: "pow", env: a.env, pow: b, body: a };
 							});
-						var ptnVariables = R.zeroOrMore(R.or(ptnAngle, ptnPower), function(x, b, a) { return a.concat([b]); }, []);
+						var ptnVariables = R.zeroOrMore(R.or(ptnAngle, ptnFactorial, ptnPower), function(x, b, a) {
+								return a.concat([b]);
+							}, []);
 						return R.then(R.attr(1).thenMaybe(ptnNumber), function(x, b, a) { return { env: a.env, val: b }; })
 							.then(ptnVariables, function(x, b, a) { return { type: "term", env: a.env, num: a.val, vars: b }; });
 					},
@@ -254,12 +289,15 @@ var ptnPoly = R.Yn(
 							.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
 								return { type: "angle", env: a.env, body: a };
 							});
+						var ptnFactorial = R.then(ptnElement).then("!", function(x, b, a) {
+								return { type: "factorial", env: a.env, body: a };
+							});
 						var ptnPower = R.then(ptnElement).thenMaybe(R.then("^").then(ptnSingle), function(x, b, a) {
 								return { type: "pow", env: a.env, pow: b, body: a };
 							});
-						var ptnVariables = R.zeroOrMore(R.or(ptnAngle, ptnPower), function(x, b, a) {
-							return a.concat([b]);
-						}, []);
+						var ptnVariables = R.zeroOrMore(R.or(ptnAngle, ptnFactorial, ptnPower), function(x, b, a) {
+								return a.concat([b]);
+							}, []);
 						return R.then(R.attr(1).thenMaybe(ptnNumber), function(x, b, a) { return { env: a.env, val: b }; })
 							.then(ptnVariables, function(x, b, a) { return { type: "term", env: a.env, num: a.val, vars: b }; });
 					}
@@ -378,12 +416,33 @@ var actions = {
 	},
 	"sum": function(x, env) {
 		var res = "",
-			count = env.count++;
-		res += "(function (i" + count + "," + x.countvar + ") {";
-		res += "for(" + x.countvar + "=" + visit(x.start, env) + ";" + x.countvar + "<=" + visit(x.end, env) + ";" + x.countvar + "++){";
-		res += "i" + count + "+=" + visit(x.body, env) + ";";
-		res += "}";
-		res += " return i" + count + ";})(0,0)";
+			count = env.count;
+		if(x.end.type === "infty") {
+			env.count += 2;
+			res += "(function (i" + count + ",i" + (count + 1) + "," + x.countvar + ") {";
+			res += "for(" + x.countvar + "=" + visit(x.start, env) + ";true;" + x.countvar + "++){";
+			res += "if(i" + (count + 1) + "!==false && Math.abs(i" + (count + 1) + "-i" + count + ")<" + env.epsilon + "){return i" + count + ";}";
+			res += "i" + (count + 1) + "=i" + count + ";";
+			res += "if(" + x.countvar + ">=" + env.iteration + "){ throw new Error('Series not converge'); }";
+			res += "i" + count + "+=" + visit(x.body, env) + ";";
+			res += "}";
+			res += "})(0,false,0)";
+		} else {
+			env.count++;
+			res += "(function (i" + count + "," + x.countvar + ") {";
+			res += "for(" + x.countvar + "=" + visit(x.start, env) + ";" + x.countvar + "<=" + visit(x.end, env) + ";" + x.countvar + "++){";
+			res += "i" + count + "+=" + visit(x.body, env) + ";";
+			res += "}";
+			res += " return i" + count + ";})(0,0)";
+		}
+		return res;
+	},
+	"factorial": function(x, env) {
+		var res = "";
+		res += "(function ($n,$r,$e) {";
+		res += "$e=" + visit(x.body, env) + ";";
+		res += "for($n=2;$n<=$e;$n++){$r = $r * $n;}";
+		res += "return $r;})(0,1)";
 		return res;
 	},
 	"abs": function(x, env) {
@@ -419,15 +478,19 @@ function visit(x, env) {
 	return actions[x.type](x, env);
 }
 
-var defaultConsts = {
-	e: Math.E,
-	pi: Math.PI
+var defaultOption = {
+	iteration: 10000,
+	epsilon: 1e-15,
+	consts: {
+		e: Math.E,
+		pi: Math.PI
+	}
 };
 
 function generateToTeX(option /*, args*/) {
 	var i,
-		opt = option ? option : {},
-		consts = opt.consts ? opt.consts : defaultConsts,
+		opt = mergeObject(option ? option : {}, defaultOption),
+		consts = opt.consts,
 		attrs = [],
 		funcGroups = {},
 		funcGroup,
@@ -528,7 +591,9 @@ function generateToTeX(option /*, args*/) {
 	}
 	env = {
 		count: 0,
-		consts: []
+		consts: [],
+		iteration: opt.iteration,
+		epsilon: opt.epsilon
 	};
 	inheritAttr = getInitAttribute();
 	for(i = 1; i < arguments.length; i++) {
