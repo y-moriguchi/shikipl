@@ -295,6 +295,56 @@ f(a) =  >       sin a + cos a
           n = 1
 `);
 
+function sum5(a) {
+	var result = 0, n, m;
+	for(n = 1; n <= 3; n++) {
+		for(m = 1; m <= 3; m++) {
+			result += a * (n + m);
+		}
+	}
+	return result;
+}
+assertFloat("sum 5", s => s.f(2), sum5(2), `
+          3      3
+       ---    ---
+f(a) =  >      >     a{n + m}
+       ---    ---
+          n=1    m=1
+`);
+
+function sum6(a) {
+	var result = 0, n, m;
+	for(n = 1; n <= 3; n++) {
+		result += a * n;
+	}
+	return result;
+}
+assertFloat("sum 6", s => s.f(2), sum6(2) + sum6(3), `
+          3           3
+       ---         ---
+f(a) =  >     an +  >     (a + 1)m
+       ---         ---
+          n=1         m=1
+`);
+
+function sum7(a) {
+	var result = 0, n, m;
+	for(n = 1; n <= 3; n++) {
+		result += a * n;
+		for(m = 1; m <= 3; m++) {
+			result += (a + 1) * m;
+		}
+	}
+	return result;
+}
+assertFloat("sum 7", s => s.f(2), sum7(2), `
+          3            3
+       ---          ---
+f(a) =  >     (an +  >     (a + 1)m)
+       ---          ---
+          n=1          m=1
+`);
+
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `
                      ________
                     / 2

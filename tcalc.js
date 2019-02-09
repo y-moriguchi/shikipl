@@ -39,8 +39,30 @@ var ptnVariableValue = R.then(generateVariableName(alphabets))
 	));
 
 var ptnPoly = R.Yn(
-	function(ptn) {
-		var ptnTerm = R.Yn(
+	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
+		return R.then(R.then(ptnFirstTerm).thenZeroOrMore(
+				R.or(
+					R.then("+").then(ptnTerm, function(x, b, a) {
+						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
+					}),
+					R.then("-").then(ptnTerm, function(x, b, a) {
+						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "-" }]) };
+					}))))
+			.action(function(x) { return { type: "poly", env: x.env, terms: x.val }; });
+	},
+	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
+		return R.then(R.then(ptnFirstTerm).thenZeroOrMore(
+				R.or(
+					R.then("+").lookaheadNot("\\sum").then(ptnTerm, function(x, b, a) {
+						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
+					}),
+					R.then("-").lookaheadNot("\\sum").then(ptnTerm, function(x, b, a) {
+						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "-" }]) };
+					}))))
+			.action(function(x) { return { type: "poly", env: x.env, terms: x.val }; });
+	},
+	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
+		return R.Yn(
 			function(ptnTerm) {
 				function generateParen(left, right, action) {
 					return R.then(left).then(ptn, action).then(right);
@@ -109,7 +131,7 @@ var ptnPoly = R.Yn(
 								end: b
 							};
 						}))
-					.then(ptn, function(x, b, a) {
+					.then(ptnWithoutSum, function(x, b, a) {
 						return {
 							type: "sum",
 							env: a.env,
@@ -244,21 +266,14 @@ var ptnPoly = R.Yn(
 				);
 			}
 		);
-		var ptnFirstTerm = R.or(
+	},
+	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
+		return R.or(
 			R.then("-").then(ptnTerm, function(x, b, a) {
 				return { env: a.env, val: [{ type: "negate", env: a.env, body: b }] };
 			}),
 			R.then(ptnTerm, function(x, b, a) { return { env: a.env, val: [b] }; })
 		);
-		return R.then(R.then(ptnFirstTerm).thenZeroOrMore(
-				R.or(
-					R.then("+").then(ptnTerm, function(x, b, a) {
-						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
-					}),
-					R.then("-").then(ptnTerm, function(x, b, a) {
-						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "-" }]) };
-					}))))
-			.action(function(x) { return { type: "poly", env: x.env, terms: x.val }; });
 	}
 );
 
@@ -362,12 +377,13 @@ var actions = {
 		return res;
 	},
 	"sum": function(x, env) {
-		var res = "";
-		res += "(function (i" + env.count + "," + x.countvar + ") {";
+		var res = "",
+			count = env.count++;
+		res += "(function (i" + count + "," + x.countvar + ") {";
 		res += "for(" + x.countvar + "=" + visit(x.start, env) + ";" + x.countvar + "<=" + visit(x.end, env) + ";" + x.countvar + "++){";
-		res += "i" + env.count + "+=" + visit(x.body, env) + ";";
-		res += "} return i" + env.count + ";})(0,0)";
-		env.count++;
+		res += "i" + count + "+=" + visit(x.body, env) + ";";
+		res += "}";
+		res += " return i" + count + ";})(0,0)";
 		return res;
 	},
 	"abs": function(x, env) {
@@ -415,7 +431,7 @@ function generateToTeX(option /*, args*/) {
 		attrs = [],
 		funcGroups = {},
 		funcGroup,
-		env = { count: 0, consts: [] },
+		env,
 		funcResult,
 		inheritAttr,
 		resultAttr;
@@ -510,6 +526,10 @@ function generateToTeX(option /*, args*/) {
 		}
 		return false;
 	}
+	env = {
+		count: 0,
+		consts: []
+	};
 	inheritAttr = getInitAttribute();
 	for(i = 1; i < arguments.length; i++) {
 		resultAttr = ptn.parse(arguments[i], inheritAttr).attribute;
