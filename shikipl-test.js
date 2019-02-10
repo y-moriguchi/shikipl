@@ -376,6 +376,21 @@ f(a) =  >     an + 2 >     (a + 1)m
           n=1          m=1
 `);
 
+function sum10(a) {
+	var result = 0, n, m;
+	for(n = 1; n <= 3; n++) {
+		result += a * n;
+	}
+	return result;
+}
+assertFloat("sum 10", s => s.f(2), sum10(2) + 2 / 3 * sum10(3), `
+          3               3
+       ---          a  ---
+f(a) =  >     an + ---  >     (a + 1)m
+       ---          3  ---
+          n=1             m=1
+`);
+
 assertFloat("factorial 1", s => s.f(5), 120, `
 f(n) = n!
 `);
