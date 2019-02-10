@@ -472,24 +472,29 @@ var actions = {
 			varBegin = count,
 			varEnd = count + 1,
 			varStep = count + 2,
-			varN0 = count + 3,
-			varN1 = count + 4,
-			varResult = count + 5;
-		env.count += 6;
-		res += "(function (i" + varBegin + ",i" + varEnd + ",i" + varStep + ",i" + varN0 + ",i" + varN1+ ",i" + varResult + "," + x.countvar + ") {";
+			varN1 = count + 3,
+			varResult = count + 4,
+			varI = count + 5;
+		env.count += 5;
+		res += "(function (i" + varBegin + ",i" + varEnd + ",i" + varStep + ",i" + varN1 + ",i" + varResult + ",i" + varI + "," + x.countvar + ") {";
 		res += "i" + varBegin + "=" + visit(x.start, env) + ";";
 		res += "i" + varEnd + "=" + visit(x.end, env) + ";";
 		res += "i" + varStep + "=(i" + varEnd + "-i" + varBegin + ")/" + env.integralInterval + ";";
-		res += "i" + varN0 + "=false;";
 		res += "i" + varResult + "=0;";
-		res += "for(" + x.countvar + "=i" + varBegin + ";" + x.countvar + "<=i" + varEnd + ";" + x.countvar + "+=i" + varStep + "){";
+		res += "for(i" + varI + "=0;i" + varI + "<=" + env.integralInterval + ";i" + varI + "++){";
+		res += x.countvar + "=i" + varBegin + "+i" + varI + "*i" + varStep + ";";
 		res += "i" + varN1 + "=" + visit(x.body, env) + ";";
-		res += "if(i" + varN0 + "!==false){";
-		res += "i" + varResult + "+=(i" + varN1 + "+i" + varN0 + ")*i" + varStep + "/2;";
+		res += "if(i" + varI + "===0){";
+		res += "i" + varResult + "+=(i" + varN1 + ");";
+		res += "}else if(i" + varI + "===" + env.integralInterval + "){";
+		res += "i" + varResult + "+=(i" + varN1 + ");";
+		res += "}else if(i" + varI + "%2===0){";
+		res += "i" + varResult + "+=(i" + varN1 + ")*2;";
+		res += "}else{";
+		res += "i" + varResult + "+=(i" + varN1 + ")*4;";
 		res += "}";
-		res += "i" + varN0 + "=i" + varN1 + ";";
 		res += "}";
-		res += "return i" + varResult + ";})(0,0,0,0,0,0,0)";
+		res += "return i" + varResult + "*i" + varStep + "/3;})(0,0,0,0,0,0)";
 		return res;
 	},
 	"factorial": function(x, env) {

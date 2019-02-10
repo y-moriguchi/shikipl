@@ -8,7 +8,7 @@
  */
 var R = require("rena-js").clone();
 R.ignoreDefault(/[ \t\n]+/);
-R.setKey(["++", "**", "*", "/", "+", "-", "<=", ">=", "<", ">", "===", "!==", "&&", "=", "+="]);
+R.setKey(["++", "**", "*", "/", "%", "+", "-", "<=", ">=", "<", ">", "===", "!==", "&&", "=", "+="]);
 
 var ptnSimpleVarName = R.then(/[\$a-zA-Z_][\$a-zA-Z0-9_]*/, function(x) { return x.trim(); });
 var ptnVarName = R.delimit(ptnSimpleVarName, ".", function(x, b, a) { return a ? a + "." + b : b; }, "");
@@ -78,7 +78,8 @@ var ptnExpr = R.Yn(function(ptnExpr, ptnExprList, ptnStmt, ptnStmtList) {
 	});
 	var ptnFactor = R.then(ptnExponent).thenZeroOrMore(R.or(
 		R.key("*").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "*" }; }),
-		R.key("/").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "/" }; }))
+		R.key("/").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "/" }; }),
+		R.key("%").then(ptnExponent, function(x, b, a) { return { type: "op", left: a, right: b, op: "%" }; }))
 	);
 	var ptnTerm = R.then(ptnFactor).thenZeroOrMore(R.or(
 		R.key("+").then(ptnFactor, function(x, b, a) { return { type: "op", left: a, right: b, op: "+" }; }),

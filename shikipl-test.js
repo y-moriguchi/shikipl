@@ -406,7 +406,7 @@ assertFloat("integral 1", s => s.f(2), 8/3, `
 f(a) =  |   dx x
        \\/
           0
-`, 1e-6, { integralInterval: 20000 });
+`, 1e-6);
 
 assertFloat("integral 2", s => s.f(2), 16/3, `
           a            a
@@ -414,7 +414,7 @@ assertFloat("integral 2", s => s.f(2), 16/3, `
 f(a) =  |   dx x  +  |   dx x
        \\/           \\/
           0            0
-`, 1e-6, { integralInterval: 20000 });
+`, 1e-6);
 
 assertFloat("integral 3", s => s.f(2), 8, `
           a             a
@@ -422,7 +422,7 @@ assertFloat("integral 3", s => s.f(2), 8, `
 f(a) =  |   dx x  + 2 |   dx x
        \\/            \\/
           0             0
-`, 1e-6, { integralInterval: 20000 });
+`, 1e-6);
 
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `
                      ________
