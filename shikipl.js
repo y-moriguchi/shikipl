@@ -10,11 +10,11 @@ var Shiki = require("shikiml/shiki.js"),
     Tcalc = require("./tcalc.js"),
     prettyPrinter = require("./jsmetaflat-pp.js");
 
-function transform(formulaeString) {
+function transform(formulaeString, option) {
     var i,
         parsed,
         formulae,
-        transformed = [null],
+        transformed = [option],
         resultCode;
     formulae = formulaeString.split(/\n\n/);
     for(i = 0; i < formulae.length; i++) {

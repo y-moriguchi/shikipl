@@ -67,12 +67,13 @@ var ptnPoly = R.Yn(
 			.action(function(x) { return { type: "poly", env: x.env, terms: x.val }; });
 	},
 	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
+		var lookaheadSum = R.then(R.zeroOrMore(R.or(ptnVariableValue, ptnNumber))).then(R.or("\\sum", "\\int"));
 		return R.then(R.then(ptnFirstTerm).thenZeroOrMore(
 				R.or(
-					R.then("+").lookaheadNot("\\sum").then(ptnTerm, function(x, b, a) {
+					R.then("+").lookaheadNot(lookaheadSum).then(ptnTerm, function(x, b, a) {
 						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "+" }]) };
 					}),
-					R.then("-").lookaheadNot("\\sum").then(ptnTerm, function(x, b, a) {
+					R.then("-").lookaheadNot(lookaheadSum).then(ptnTerm, function(x, b, a) {
 						return { env: a.env, val: a.val.concat([{ type: "term", num: b.num, vars: b.vars, sign: "-" }]) };
 					}))))
 			.action(function(x) { return { type: "poly", env: x.env, terms: x.val }; });
@@ -171,6 +172,32 @@ var ptnPoly = R.Yn(
 							body: b
 						};
 					});
+				var ptnIntegral = R.then("\\int").then("_").then(ptnSingle).then("^")
+					.then(ptnSingle, function(x, b, a) {
+						return {
+							type: "integral",
+							env: a.env,
+							start: a,
+							end: b
+						};
+					}).then("d").then(ptnVariableValue, function(x, b, a) {
+						return {
+							type: "integral",
+							env: { func: a.env.func, vars: a.env.vars.concat([b]) },
+							start: a.start,
+							end: a.end,
+							countvar: b
+						};
+					}).then(ptnWithoutSum, function(x, b, a) {
+						return {
+							type: "integral",
+							env: a.env,
+							start: a.start,
+							end: a.end,
+							countvar: a.countvar,
+							body: b
+						};
+					});
 				var ptnAbs = generateParen("|", "|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 				var ptnBigAbs = generateParen("\\left|", "\\right|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 
@@ -241,6 +268,7 @@ var ptnPoly = R.Yn(
 							ptnRoot,
 							R.lookahead(ptnFunctionHead).then(ptnFunctions),
 							ptnSum,
+							ptnIntegral,
 							ptnBracket,
 							generateParen("(", ")"),
 							generateParen("\\{", "\\}"),
@@ -275,6 +303,7 @@ var ptnPoly = R.Yn(
 							ptnFrac,
 							ptnRoot,
 							ptnSum,
+							ptnIntegral,
 							ptnBracket,
 							generateParen("(", ")"),
 							generateParen("\\{", "\\}"),
@@ -437,6 +466,32 @@ var actions = {
 		}
 		return res;
 	},
+	"integral": function(x, env) {
+		var res = "",
+			count = env.count,
+			varBegin = count,
+			varEnd = count + 1,
+			varStep = count + 2,
+			varN0 = count + 3,
+			varN1 = count + 4,
+			varResult = count + 5;
+		env.count += 6;
+		res += "(function (i" + varBegin + ",i" + varEnd + ",i" + varStep + ",i" + varN0 + ",i" + varN1+ ",i" + varResult + "," + x.countvar + ") {";
+		res += "i" + varBegin + "=" + visit(x.start, env) + ";";
+		res += "i" + varEnd + "=" + visit(x.end, env) + ";";
+		res += "i" + varStep + "=(i" + varEnd + "-i" + varBegin + ")/" + env.integralInterval + ";";
+		res += "i" + varN0 + "=false;";
+		res += "i" + varResult + "=0;";
+		res += "for(" + x.countvar + "=i" + varBegin + ";" + x.countvar + "<=i" + varEnd + ";" + x.countvar + "+=i" + varStep + "){";
+		res += "i" + varN1 + "=" + visit(x.body, env) + ";";
+		res += "if(i" + varN0 + "!==false){";
+		res += "i" + varResult + "+=(i" + varN1 + "+i" + varN0 + ")*i" + varStep + "/2;";
+		res += "}";
+		res += "i" + varN0 + "=i" + varN1 + ";";
+		res += "}";
+		res += "return i" + varResult + ";})(0,0,0,0,0,0,0)";
+		return res;
+	},
 	"factorial": function(x, env) {
 		var res = "";
 		res += "(function ($n,$r,$e) {";
@@ -481,6 +536,7 @@ function visit(x, env) {
 var defaultOption = {
 	iteration: 10000,
 	epsilon: 1e-15,
+	integralInterval: 1000,
 	consts: {
 		e: Math.E,
 		pi: Math.PI
@@ -593,7 +649,8 @@ function generateToTeX(option /*, args*/) {
 		count: 0,
 		consts: [],
 		iteration: opt.iteration,
-		epsilon: opt.epsilon
+		epsilon: opt.epsilon,
+		integralInterval: opt.integralInterval
 	};
 	inheritAttr = getInitAttribute();
 	for(i = 1; i < arguments.length; i++) {

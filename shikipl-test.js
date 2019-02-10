@@ -6,30 +6,38 @@
  * This software is released under the MIT License.
  * http://opensource.org/licenses/mit-license.php
  **/
-var shikipl = require("./shikipl.js");
-var black   = "\u001b[30m";
-var red     = "\u001b[31m";
-var green   = "\u001b[32m";
-var yellow  = "\u001b[33m";
-var blue    = "\u001b[34m";
-var magenta = "\u001b[35m";
-var cyan    = "\u001b[36m";
-var white   = "\u001b[37m";
-var reset   = "\u001b[0m";
-var epsilon = 1e-13;
+"use strict";
 
-function assertFloat(title, callback, expect, shikiProgram) {
+const shikipl = require("./shikipl.js");
+const black   = "\u001b[30m";
+const red     = "\u001b[31m";
+const green   = "\u001b[32m";
+const yellow  = "\u001b[33m";
+const blue    = "\u001b[34m";
+const magenta = "\u001b[35m";
+const cyan    = "\u001b[36m";
+const white   = "\u001b[37m";
+const reset   = "\u001b[0m";
+const defaultEpsilon = 1e-13;
+let passed = 0;
+let failed = 0;
+
+function assertFloat(title, callback, expect, shikiProgram, epsilon, option) {
+	epsilon = epsilon ? epsilon : defaultEpsilon;
 	try {
-		const program = shikipl(shikiProgram.replace(/^\n/, ""));
+		const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
 		const resultFunction = (1,eval)(program);
 		const actual = callback(resultFunction);
 		if(Math.abs(actual - expect) < epsilon) {
 			console.log(`pass: ${title}`);
+			passed++;
 		} else {
 			console.log(`${red}fail: ${title}: expect ${expect} but actual ${actual}${reset}`);
+			failed++;
 		}
 	} catch(e) {
 		console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
+		failed++;
 	}
 }
 
@@ -353,6 +361,21 @@ f(a) =  >     ----
           n=1
 `);
 
+function sum9(a) {
+	var result = 0, n, m;
+	for(n = 1; n <= 3; n++) {
+		result += a * n;
+	}
+	return result;
+}
+assertFloat("sum 9", s => s.f(2), sum9(2) + 2 * sum9(3), `
+          3            3
+       ---          ---
+f(a) =  >     an + 2 >     (a + 1)m
+       ---          ---
+          n=1          m=1
+`);
+
 assertFloat("factorial 1", s => s.f(5), 120, `
 f(n) = n!
 `);
@@ -376,6 +399,30 @@ f(x) =  >     ------------
        ---      (2n+1)!
           n=0
 `);
+
+assertFloat("integral 1", s => s.f(2), 8/3, `
+          a
+        /\\      2
+f(a) =  |   dx x
+       \\/
+          0
+`, 1e-6, { integralInterval: 20000 });
+
+assertFloat("integral 2", s => s.f(2), 16/3, `
+          a            a
+        /\\      2    /\\      2
+f(a) =  |   dx x  +  |   dx x
+       \\/           \\/
+          0            0
+`, 1e-6, { integralInterval: 20000 });
+
+assertFloat("integral 3", s => s.f(2), 8, `
+          a             a
+        /\\      2     /\\      2
+f(a) =  |   dx x  + 2 |   dx x
+       \\/            \\/
+          0             0
+`, 1e-6, { integralInterval: 20000 });
 
 assertFloat("a solution of quadratic equation", s => s.f(2, -4, 2), 1, `
                      ________
@@ -452,3 +499,5 @@ a
 assertThrows("abnormal 2", `
 a = |a a
 `);
+
+console.log(`passed: ${passed}, failed: ${failed}`);
