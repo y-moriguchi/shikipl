@@ -212,6 +212,9 @@ var ptnPoly = R.Yn(
 						R.then("{").then("\\log").then(R.maybe(R.then("_").then(ptnSingle))).then("}"),
 						R.then("\\log")));
 					var ptnFunctionHead = R.or(
+						generateTriFuncHead("sinh"),
+						generateTriFuncHead("cosh"),
+						generateTriFuncHead("tanh"),
 						generateTriFuncHead("sin"),
 						generateTriFuncHead("cos"),
 						generateTriFuncHead("tan"),
@@ -251,9 +254,15 @@ var ptnPoly = R.Yn(
 									.then(ptnFunctions, function(x, b, a) { return { type: "exp", env: a.env, base: null, body: b }; });
 		
 								return R.or(
+									generateInvTriFunc("sinh"),
+									generateInvTriFunc("cosh"),
+									generateInvTriFunc("tanh"),
 									generateInvTriFunc("sin"),
 									generateInvTriFunc("cos"),
 									generateInvTriFunc("tan"),
+									generateTriFunc("sinh"),
+									generateTriFunc("cosh"),
+									generateTriFunc("tanh"),
 									generateTriFunc("sin"),
 									generateTriFunc("cos"),
 									generateTriFunc("tan"),

@@ -215,6 +215,33 @@ assertFloat("arctan", s => s.f(1), Math.PI / 4, `
 f(a) = tan   a
 `);
 
+assertFloat("sinh", s => s.f(2), Math.sinh(2), `
+f(a) = sinh a
+`);
+
+assertFloat("cosh", s => s.f(2), Math.cosh(2), `
+f(a) = cosh a
+`);
+
+assertFloat("tanh", s => s.f(2), Math.tanh(2), `
+f(a) = tanh a
+`);
+
+assertFloat("arcsinh", s => s.f(2), Math.asinh(2), `
+           -1
+f(a) = sinh   a
+`);
+
+assertFloat("arccosh", s => s.f(2), Math.acosh(2), `
+           -1
+f(a) = cosh   a
+`);
+
+assertFloat("arctanh", s => s.f(0.5), Math.atanh(0.5), `
+           -1
+f(a) = tanh   a
+`);
+
 assertFloat("power of trigonometric function", s => s.f(8.765346283), 1, `
           2        2
 f(a) = sin  a + cos  a
