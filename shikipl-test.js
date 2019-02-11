@@ -54,6 +54,14 @@ assertFloat("const", s => s.a, 27, `
 a = 27
 `);
 
+assertFloat("prime 1", s => s.aPrime, 27, `
+a' = 27
+`);
+
+assertFloat("prime 2", s => s.aPrimePrimePrime, 27, `
+a''' = 27
+`);
+
 assertFloat("addition", s => s.f(26), 27, `
 f(a) = a + 1
 `);

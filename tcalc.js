@@ -48,11 +48,11 @@ function generateVariableName(alphabets) {
 
 var ptnInteger = R.attr(0).thenOneOrMore(R.thenInt(/[0-9]/), function(x, b, a) { return a * 10 + b; });
 var ptnNumber = R.then(ptnInteger).thenMaybe(R.then(".").then(ptnInteger), function(x, b, a) { return parseFloat(a + "." + b); });
+var ptnPrimeSequence = R.attr("").thenOneOrMore(R.then("\\prime"), function(x, b, a) { return a + "Prime"; });
 var ptnVariableValue = R.then(generateVariableName(alphabets))
-	.thenMaybe(R.or(
-		R.then("^").then("\\prime", function(x, b, a) { return a + "Prime"; }),
-		R.then("^").then("{").then("\\prime").then("\\prime").then("}", function(x, b, a) { return a + "PrimePrime"; })
-	));
+	.thenMaybe(
+		R.then("^").then("{").then(ptnPrimeSequence, function(x, b, a) { return a + b; }).then("}")
+	);
 
 var ptnPoly = R.Yn(
 	function(ptn, ptnWithoutSum, ptnTerm, ptnFirstTerm) {
@@ -107,7 +107,7 @@ var ptnPoly = R.Yn(
 					var ptnNumberType = R.then(ptnNumber, function(x, b, a) { return { type: "num", env: a.env, number: b }; });
 					var ptnSingle = R.action(function(x) { return { type: "num", env: x.env, number: 1 }; })
 						.or(ptnBracket, ptnVariable, ptnNumberType);
-		
+
 					var ptnFrac = R.then("\\frac").then(ptnBracket, function(x, b, a) { return { env: a.env, val: b }; })
 						.then(ptnBracket, function(x, b, a) { return { type: "frac", env: a.env, numer: a.val, denom: b }; });
 					var ptnCall = R.then(ptnVariableValue, function(x, b, a) { return { env: a.env, func: b }; })
@@ -203,7 +203,7 @@ var ptnPoly = R.Yn(
 						});
 					var ptnAbs = generateParen("|", "|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
 					var ptnBigAbs = generateParen("\\left|", "\\right|", function(x, b, a) { return { type: "abs", env: a.env, body: b }; });
-		
+
 					function generateTriFuncHead(fname) {
 						var func = R.then("\\" + fname).thenMaybe(R.then("^").then(ptnSingle));
 						return R.or(R.then("{").then(func).then("}"), R.then(func));
@@ -221,7 +221,7 @@ var ptnPoly = R.Yn(
 						ptnLogHead,
 						R.then("\\ln"),
 						R.then("\\exp"));
-		
+
 					return R.Yn(
 						function(ptnTerm, ptnNoFunction) {
 							var ptnFunctions = R.Y(function(ptnFunctions) {
@@ -252,7 +252,7 @@ var ptnPoly = R.Yn(
 									.then(ptnFunctions, function(x, b, a) { return { type: "log", env: a.env, base: null, body: b }; });
 								var ptnExp = R.then("\\exp")
 									.then(ptnFunctions, function(x, b, a) { return { type: "exp", env: a.env, base: null, body: b }; });
-		
+
 								return R.or(
 									generateInvTriFunc("sinh"),
 									generateInvTriFunc("cosh"),
@@ -271,7 +271,7 @@ var ptnPoly = R.Yn(
 									ptnExp,
 									ptnNoFunction);
 							});
-		
+
 							var ptnElement = R.or(
 								ptnCall,
 								ptnCallSub,
@@ -290,7 +290,7 @@ var ptnPoly = R.Yn(
 								generateParen("\\left[", "\\right]"),
 								ptnAbs,
 								ptnBigAbs);
-		
+
 							var ptnAngle = R.then(ptnElement)
 								.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
 									return { type: "angle", env: a.env, body: a };
@@ -325,7 +325,7 @@ var ptnPoly = R.Yn(
 								generateParen("\\left[", "\\right]"),
 								ptnAbs,
 								ptnBigAbs);
-		
+
 							var ptnAngle = R.then(ptnElement)
 								.then(R.then("^").then(R.or(R.then(R.maybe("{")).then("o").then(R.maybe("}")), R.then("o"))), function(x, b, a) {
 									return { type: "angle", env: a.env, body: a };
