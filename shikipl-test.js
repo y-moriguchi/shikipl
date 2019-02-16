@@ -41,12 +41,32 @@ function assertFloat(title, callback, expect, shikiProgram, epsilon, option) {
 	}
 }
 
-function assertThrows(title, shikiProgram) {
+function assertThrowsSyntax(title, shikiProgram) {
 	try {
 		shikipl(shikiProgram.replace(/^\n/, ""));
 		console.log(`${red}fail: ${title}: expect throw exception${reset}`);
+		failed++;
 	} catch(e) {
 		console.log(`pass: ${title}: ${e.message}`);
+		passed++;
+	}
+}
+
+function assertThrows(title, callback, shikiProgram, option) {
+	try {
+		const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
+		const resultFunction = (1,eval)(program);
+		try {
+			callback(resultFunction);
+			console.log(`${red}fail: ${title}: expect throw exception${reset}`);
+			failed++;
+		} catch(e) {
+			console.log(`pass: ${title}: ${e.message}`);
+			passed++;
+		}
+	} catch(e) {
+		console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
+		failed++;
 	}
 }
 
@@ -500,6 +520,9 @@ d(B, b, L, l) = 2r sin    /  sin  -------- + cos B  cos b  sin  --------
 `);
 
 assertFloat("Fibonacci series", s => s.F(10), 55, `
+n \\in *|N*
+          0
+
 F  = 0
  0
 
@@ -541,13 +564,109 @@ assertFloat("mixed test 2", s => s.f(8.765346283), 1, `
 f(x) = (sin x)(sin x) + (cos x)(cos x)
 `);
 
-assertThrows("abnormal 1", `
+assertFloat("integer validation 1", s => s.F(1), 1, `
+n \\in *|N*
+
+F  = 1
+ 1
+
+F  = F    + 1
+ n    n-1
+`);
+
+assertFloat("integer validation 2", s => s.F(3), 3, `
+n \\in *|N*
+
+F  = 1
+ 1
+
+F  = F    + 1
+ n    n-1
+`);
+
+assertFloat("integer validation 3", s => s.F(0), 0, `
+n \\in *|Z*
+
+F  = 2n
+ n
+`);
+
+assertFloat("integer validation 4", s => s.F(9), 18, `
+n \\in *|Z*
+
+F  = 2n
+ n
+`);
+
+assertFloat("integer validation 5", s => s.F(-9), -18, `
+n \\in *|Z*
+
+F  = 2n
+ n
+`);
+
+assertThrowsSyntax("abnormal - syntax error", `
 a
 a
 `);
 
-assertThrows("abnormal 2", `
+assertThrowsSyntax("abnormal - syntax error", `
 a = |a a
+`);
+
+assertThrows("abnormal - integer validation 1", s => s.F(9.5), `
+n \\in *|N*
+          0
+
+F  = 0
+ 0
+
+F  = 1
+ 1
+
+F  = F    + F
+ n    n-2    n-1
+`);
+
+assertThrows("abnormal - integer validation 2", s => s.F(-1), `
+n \\in *|N*
+          0
+
+F  = 0
+ 0
+
+F  = 1
+ 1
+
+F  = F    + F
+ n    n-2    n-1
+`);
+
+assertThrows("abnormal - integer validation 3", s => s.F(9.5), `
+n \\in *|N*
+
+F  = 1
+ 1
+
+F  = F    + 1
+ n    n-1
+`);
+
+assertThrows("abnormal - integer validation 4", s => s.F(0), `
+n \\in *|N*
+
+F  = 1
+ 1
+
+F  = F    + 1
+ n    n-1
+`);
+
+assertThrows("abnormal - integer validation 5", s => s.F(9.5), `
+n \\in *|Z*
+
+F  = 2n
+ n
 `);
 
 console.log(`passed: ${passed}, failed: ${failed}`);

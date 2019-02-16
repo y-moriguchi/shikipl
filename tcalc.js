@@ -377,7 +377,34 @@ var ptnSubLeft = R.or(R.then("{").then(ptnSubLeftBase).then("}"), ptnSubLeftBase
 var ptnConst = R.then(ptnVariableValue, function(x, b, a) { return { env: { func: b, vars: a.env.vars } }; });
 var ptnLeft = R.or(ptnSmallLeft, ptnBigLeft, ptnSubLeft, ptnConst);
 
-var ptn = R.then(ptnLeft).then("=").then(ptnPoly, function(x, b, a) { return { type: "func", left: a.env, right: b }; });
+var ptnCalc = R.then(ptnLeft).then("=").then(ptnPoly, function(x, b, a) { return { type: "func", left: a.env, right: b }; });
+
+var ptnNumberType = R.then(R.maybe(R.then("\\mathbb").then("{").then("}"))).then(R.maybe("{")).or(
+	R.then("\\mathbb").then("{").then("N").then("}").then("_").then("{").then("0").then("}", function(x, b, a) {
+		return function(name) {
+			return "if(" + name + "<0 || Number.isInteger(" + name + ")===false) { throw new Error('Not non-negative integer'); }";
+		};
+	}),
+	R.then("\\mathbb").then("{").then("N").then("}", function(x, b, a) {
+		return function(name) {
+			return "if(" + name + "<1 || Number.isInteger(" + name + ")===false) { throw new Error('Not positive integer'); }";
+		};
+	}),
+	R.then("\\mathbb").then("{").then("Z").then("}", function(x, b, a) {
+		return function(name) {
+			return "if(Number.isInteger(" + name + ")===false) { throw new Error('Not integer'); }";
+		};
+	})
+).then(R.maybe("}"));
+var ptnIn = R.then(ptnVariableValue).then("\\in").then(ptnNumberType, function(x, b, a) {
+	return {
+		type: "check",
+		variable: a,
+		code: b
+	};
+});
+
+var ptn = R.or(ptnIn, ptnCalc);
 
 var actions = {
 	"var": function(x, env) {
@@ -541,10 +568,21 @@ var actions = {
 				res += typeof x.left.vars[i] === "number" ? "_" + i : x.left.vars[i];
 			}
 		}
-		res += (res ? "" : "function(") + ")\n{\treturn ";
+		res += (res ? "" : "function(") + ")\n{\t";
+		for(i = 0; i < x.left.vars.length; i++) {
+			if(!x.left.vars[i].constFlag &&
+					typeof x.left.vars[i] !== "number" &&
+					env.check[x.left.vars[i]]) {
+				res += env.check[x.left.vars[i]](x.left.vars[i]);
+			}
+		}
+		res += "return ";
 		res += visit(x.right, env);
 		res += ";\n}";
 		return res;
+	},
+	"check": function(x, env) {
+		env.check[x.variable] = x.code;
 	}
 };
 
@@ -605,6 +643,7 @@ function generateToTeX(option /*, args*/) {
 		var j,
 			k,
 			argResult,
+			argCheck = "",
 			funcResult,
 			vars,
 			cond,
@@ -621,6 +660,7 @@ function generateToTeX(option /*, args*/) {
 		if(argResult) {
 			funcResult = "function(";
 			funcResult += argResult + ") {";
+			funcResult += argCheck;
 			funcResult += "if(false) {} else "
 			for(j = 0; j < funcGroups[name].length; j++) {
 				vars = funcGroups[name][j].left.vars;
@@ -636,7 +676,8 @@ function generateToTeX(option /*, args*/) {
 						funcResult += " && a" + k + " === " + cond[k];
 					}
 				}
-				funcResult += ") { return (";
+				funcResult += ") {"
+				funcResult += " return (";
 				funcResult += visit(funcGroups[name][j], env);
 				funcResult += ")(";
 				for(k = 0, argResult = ""; k < vars.length; k++) {
@@ -669,13 +710,14 @@ function generateToTeX(option /*, args*/) {
 		consts: [],
 		iteration: opt.iteration,
 		epsilon: opt.epsilon,
-		integralInterval: opt.integralInterval
+		integralInterval: opt.integralInterval,
+		check: {}
 	};
 	inheritAttr = getInitAttribute();
 	for(i = 1; i < arguments.length; i++) {
 		resultAttr = ptn.parse(arguments[i], inheritAttr).attribute;
 		attrs.push(resultAttr);
-		if(!hasNotConstFlag(resultAttr)) {
+		if(resultAttr.left && !hasNotConstFlag(resultAttr)) {
 			inheritAttr.env.vars.push({
 				constFlag: POSTDEFINED_CONST,
 				val: resultAttr.left.func
@@ -684,14 +726,18 @@ function generateToTeX(option /*, args*/) {
 		}
 	}
 	for(i = 0; i < attrs.length; i++) {
-		funcGroup = funcGroups[attrs[i].left.func];
-		if(!funcGroup) {
-			funcGroup = [attrs[i]];
-			funcGroups[attrs[i].left.func] = funcGroup;
-		} else if(funcGroup[0].left.vars.length !== attrs[i].left.vars.length) {
-			throw new Error("length of arguments is not same");
-		} else {
-			funcGroup.push(attrs[i]);
+		if(attrs[i].left) {
+			funcGroup = funcGroups[attrs[i].left.func];
+			if(!funcGroup) {
+				funcGroup = [attrs[i]];
+				funcGroups[attrs[i].left.func] = funcGroup;
+			} else if(funcGroup[0].left.vars.length !== attrs[i].left.vars.length) {
+				throw new Error("length of arguments is not same");
+			} else {
+				funcGroup.push(attrs[i]);
+			}
+		} else if(attrs[i].type === "check") {
+			visit(attrs[i], env);
 		}
 	}
 	funcResult = "";
