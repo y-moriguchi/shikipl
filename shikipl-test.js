@@ -23,51 +23,51 @@ let passed = 0;
 let failed = 0;
 
 function assertFloat(title, callback, expect, shikiProgram, epsilon, option) {
-	epsilon = epsilon ? epsilon : defaultEpsilon;
-	try {
-		const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
-		const resultFunction = (1,eval)(program);
-		const actual = callback(resultFunction);
-		if(Math.abs(actual - expect) < epsilon) {
-			console.log(`pass: ${title}`);
-			passed++;
-		} else {
-			console.log(`${red}fail: ${title}: expect ${expect} but actual ${actual}${reset}`);
-			failed++;
-		}
-	} catch(e) {
-		console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
-		failed++;
-	}
+    epsilon = epsilon ? epsilon : defaultEpsilon;
+    try {
+        const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
+        const resultFunction = (1,eval)(program);
+        const actual = callback(resultFunction);
+        if(Math.abs(actual - expect) < epsilon) {
+            console.log(`pass: ${title}`);
+            passed++;
+        } else {
+            console.log(`${red}fail: ${title}: expect ${expect} but actual ${actual}${reset}`);
+            failed++;
+        }
+    } catch(e) {
+        console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
+        failed++;
+    }
 }
 
 function assertThrowsSyntax(title, shikiProgram) {
-	try {
-		shikipl(shikiProgram.replace(/^\n/, ""));
-		console.log(`${red}fail: ${title}: expect throw exception${reset}`);
-		failed++;
-	} catch(e) {
-		console.log(`pass: ${title}: ${e.message}`);
-		passed++;
-	}
+    try {
+        shikipl(shikiProgram.replace(/^\n/, ""));
+        console.log(`${red}fail: ${title}: expect throw exception${reset}`);
+        failed++;
+    } catch(e) {
+        console.log(`pass: ${title}: ${e.message}`);
+        passed++;
+    }
 }
 
 function assertThrows(title, callback, shikiProgram, option) {
-	try {
-		const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
-		const resultFunction = (1,eval)(program);
-		try {
-			callback(resultFunction);
-			console.log(`${red}fail: ${title}: expect throw exception${reset}`);
-			failed++;
-		} catch(e) {
-			console.log(`pass: ${title}: ${e.message}`);
-			passed++;
-		}
-	} catch(e) {
-		console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
-		failed++;
-	}
+    try {
+        const program = shikipl(shikiProgram.replace(/^\n/, ""), option);
+        const resultFunction = (1,eval)(program);
+        try {
+            callback(resultFunction);
+            console.log(`${red}fail: ${title}: expect throw exception${reset}`);
+            failed++;
+        } catch(e) {
+            console.log(`pass: ${title}: ${e.message}`);
+            passed++;
+        }
+    } catch(e) {
+        console.log(`${red}fail: ${title}: throw exception ${e.message}${reset}`);
+        failed++;
+    }
 }
 
 assertFloat("const", s => s.a, 27, `
@@ -329,11 +329,11 @@ f(a) =  >       an
 `);
 
 function sum3(a, n) {
-	var result = 0, i;
-	for(i = 1; i <= 3; i++) {
-		result += a * Math.sin(a);
-	}
-	return result;
+    var result = 0, i;
+    for(i = 1; i <= 3; i++) {
+        result += a * Math.sin(a);
+    }
+    return result;
 }
 assertFloat("sum 3", s => s.f(2), sum3(2, 3), `
           3
@@ -344,11 +344,11 @@ f(a) =  >       a sin a
 `);
 
 function sum4(a, n) {
-	var result = 0, i;
-	for(i = 1; i <= 3; i++) {
-		result += Math.sin(a) + Math.cos(a);
-	}
-	return result;
+    var result = 0, i;
+    for(i = 1; i <= 3; i++) {
+        result += Math.sin(a) + Math.cos(a);
+    }
+    return result;
 }
 assertFloat("sum 4", s => s.f(2), sum4(2, 3), `
           3
@@ -359,13 +359,13 @@ f(a) =  >       sin a + cos a
 `);
 
 function sum5(a) {
-	var result = 0, n, m;
-	for(n = 1; n <= 3; n++) {
-		for(m = 1; m <= 3; m++) {
-			result += a * (n + m);
-		}
-	}
-	return result;
+    var result = 0, n, m;
+    for(n = 1; n <= 3; n++) {
+        for(m = 1; m <= 3; m++) {
+            result += a * (n + m);
+        }
+    }
+    return result;
 }
 assertFloat("sum 5", s => s.f(2), sum5(2), `
           3      3
@@ -376,11 +376,11 @@ f(a) =  >      >     a{n + m}
 `);
 
 function sum6(a) {
-	var result = 0, n, m;
-	for(n = 1; n <= 3; n++) {
-		result += a * n;
-	}
-	return result;
+    var result = 0, n, m;
+    for(n = 1; n <= 3; n++) {
+        result += a * n;
+    }
+    return result;
 }
 assertFloat("sum 6", s => s.f(2), sum6(2) + sum6(3), `
           3           3
@@ -391,14 +391,14 @@ f(a) =  >     an +  >     (a + 1)m
 `);
 
 function sum7(a) {
-	var result = 0, n, m;
-	for(n = 1; n <= 3; n++) {
-		result += a * n;
-		for(m = 1; m <= 3; m++) {
-			result += (a + 1) * m;
-		}
-	}
-	return result;
+    var result = 0, n, m;
+    for(n = 1; n <= 3; n++) {
+        result += a * n;
+        for(m = 1; m <= 3; m++) {
+            result += (a + 1) * m;
+        }
+    }
+    return result;
 }
 assertFloat("sum 7", s => s.f(2), sum7(2), `
           3            3
@@ -417,11 +417,11 @@ f(a) =  >     ----
 `);
 
 function sum9(a) {
-	var result = 0, n, m;
-	for(n = 1; n <= 3; n++) {
-		result += a * n;
-	}
-	return result;
+    var result = 0, n, m;
+    for(n = 1; n <= 3; n++) {
+        result += a * n;
+    }
+    return result;
 }
 assertFloat("sum 9", s => s.f(2), sum9(2) + 2 * sum9(3), `
           3            3
@@ -432,11 +432,11 @@ f(a) =  >     an + 2 >     (a + 1)m
 `);
 
 function sum10(a) {
-	var result = 0, n, m;
-	for(n = 1; n <= 3; n++) {
-		result += a * n;
-	}
-	return result;
+    var result = 0, n, m;
+    for(n = 1; n <= 3; n++) {
+        result += a * n;
+    }
+    return result;
 }
 assertFloat("sum 10", s => s.f(2), sum10(2) + 2 / 3 * sum10(3), `
           3               3
@@ -444,6 +444,14 @@ assertFloat("sum 10", s => s.f(2), sum10(2) + 2 / 3 * sum10(3), `
 f(a) =  >     an + ---  >     (a + 1)m
        ---          3  ---
           n=1             m=1
+`);
+
+assertFloat("sum 11", s => s.f(2), 24, `
+             3
+        2 ---     an
+f(a) = a   >     ----
+          ---      2
+             n=1
 `);
 
 assertFloat("factorial 1", s => s.f(5), 120, `
