@@ -275,6 +275,11 @@ assertFloat("power of trigonometric function", s => s.f(8.765346283), 1, `
 f(a) = sin  a + cos  a
 `);
 
+assertFloat("power of hyperbolic function", s => s.f(1), 3.7621956910836314, `
+           2         2
+f(a) = sinh  a + cosh  a
+`);
+
 assertFloat("subscript argument", s => s.f(26), 27, `
 f  = n + 1
  n
@@ -612,6 +617,88 @@ n \\in *|Z*
 F  = 2n
  n
 `);
+
+assertFloat("Cardano's formula", s => s.f(-8, -6), 2.951373035591441, `
+              ____________________________       ____________________________
+           3 /           ________________     3 /           ________________
+            /    q      /  q  2     p  3       /    q      /  q  2     p  3
+ f(q, p) = /  - --- +  / (---)  + (---)    +  /  - --- -  / (---)  + (---)
+          v      2    v    2        3        v      2    v    2        3
+`);
+
+assertFloat("Gudermannian function 1", s => s.g(2), 1.301760336, `
+          x
+        /\\        1
+g(x) =  |   dt --------
+       \\/       cosh t
+          0
+`, 1e-7);
+
+assertFloat("Gudermannian function 2", s => s.g(2), 1.301760336, `
+          -1
+g(x) = sin   tanh x
+`, 1e-7);
+
+assertFloat("Gudermannian function 3", s => s.g(2), 1.301760336, `
+          -1
+g(x) = tan   sinh x
+`, 1e-7);
+
+assertFloat("Gudermannian function 4", s => s.g(2), 1.301760336, `
+           -1        x
+g(x) = 2tan   (tanh ---)
+                     2
+`, 1e-7);
+
+assertFloat("Gudermannian function 5", s => s.g(2), 1.301760336, `
+           -1  x    π
+g(x) = 2tan  (e ) - --
+                    2
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 1", s => s.g(1.301760336), 2, `
+          x
+        /\\        1
+g(x) =  |   dt --------
+       \\/       cos t
+          0
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 2", s => s.g(1.301760336), 2, `
+            1 + sin x
+g(x) = ln |-----------|
+              cos x
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 3", s => s.g(1.301760336), 2, `
+       1      1 + sin x
+g(x) = - ln |-----------|
+       2      1 - sin x
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 4", s => s.g(1.301760336), 2, `
+                π    x
+g(x) = ln |tan (-- + ---)|
+                4     2
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 5", s => s.g(1.301760336), 2, `
+           -1
+g(x) = tanh   (sin x)
+`, 1e-7);
+
+assertFloat("Inverted Gudermannian function 6", s => s.g(1.301760336), 2, `
+           -1
+g(x) = sinh   (tan x)
+`, 1e-7);
+
+assertFloat("Bessel function 1", s => s.J(1), 0.7651976865579666, `
+          oo       m
+       ---     (-1)     x  2m
+J(x) =  >     ------- (---)
+       ---     m!m!     2
+          m=0
+`, 1e-7);
 
 assertThrowsSyntax("abnormal - syntax error", `
 a
