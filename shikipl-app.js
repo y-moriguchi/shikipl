@@ -31,7 +31,7 @@ function readFileToEnd(file) {
 }
 
 function printUsage() {
-    var toPrint = readFileToEnd("./usage.txt").replace("@version@", common.version);
+    var toPrint = readFileToEnd(__dirname + "/usage.txt").replace("@version@", common.version);
     console.error(toPrint);
     process.exit(1);
 }
