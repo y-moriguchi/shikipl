@@ -14,7 +14,7 @@ var common,
     prettyPrinter = require("./jsmetaflat-pp.js");
 
 common = {
-    version: "0.0.0"
+    version: "0.1.1"
 };
 
 function readFileToEnd(file) {
@@ -79,7 +79,7 @@ function processFile(file) {
     indent = guessIndent(source);
     source = source.replace(REPLACEREGEX, function(match, nl, initialIndent, prefix, c1) {
         var i,
-            formulae = c1.split(/\n\n/),
+            formulae = c1.replace(/\r/g, "").split(/\n\n/),
             parsed,
             transformed = [null],
             resultComment,

@@ -16,7 +16,7 @@ function transform(formulaeString, option) {
         formulae,
         transformed = [option],
         resultCode;
-    formulae = formulaeString.split(/\n\n/);
+    formulae = formulaeString.replace(/\r/g, "").split(/\n\n/);
     for(i = 0; i < formulae.length; i++) {
         try {
             parsed = Shiki.parse(formulae[i]).replace(/\\\[ */, "").replace(/ *\\\]/, "").trim();
